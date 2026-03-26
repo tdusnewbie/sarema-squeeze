@@ -36,7 +36,7 @@ spec:
     spec:
       containers:
       - name: bot
-        image: your-registry/sarema-squeeze:latest
+        image: ghcr.io/tdusnewbie/sarema-squeeze:latest
         imagePullPolicy: Always
         env:
         - name: TELEGRAM_BOT_TOKEN
