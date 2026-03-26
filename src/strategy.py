@@ -1,6 +1,6 @@
 import polars as pl
 from typing import Optional, Dict
-from models import SignalType, Signal
+from .models import SignalType, Signal
 from datetime import datetime
 
 class StrategyEngine:

@@ -3,7 +3,7 @@ import polars as pl
 from pathlib import Path
 from typing import Optional
 from datetime import datetime
-from models import Candle
+from .models import Candle
 
 class TradingDB:
     def __init__(self, db_path: Optional[str] = None):

@@ -69,9 +69,9 @@ def scan(
     """
     Scan a historical CSV file for signals (Backtester).
     """
-    from db import TradingDB
-    from engine import IndicatorEngine
-    from strategy import StrategyEngine
+    from .db import TradingDB
+    from .engine import IndicatorEngine
+    from .strategy import StrategyEngine
     import polars as pl
 
     typer.echo(f"🔍 Scanning historical data from: {file}")

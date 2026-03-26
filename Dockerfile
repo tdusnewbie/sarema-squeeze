@@ -41,6 +41,7 @@ COPY src/ /app/src/
 ENV PATH="/app/.venv/bin:$PATH"
 ENV PYTHONPATH="/app"
 ENV PYTHONUNBUFFERED=1
+ENV POLARS_SKIP_CPU_CHECK=1
 
 # Default command to run the bot
 ENTRYPOINT ["python", "-m", "src.bot"]
