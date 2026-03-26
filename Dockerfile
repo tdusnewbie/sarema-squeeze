@@ -39,8 +39,9 @@ COPY src/ /app/src/
 
 # Set environment variables
 ENV PATH="/app/.venv/bin:$PATH"
-ENV PYTHONPATH="/app/src"
+ENV PYTHONPATH="/app"
 ENV PYTHONUNBUFFERED=1
 
 # Default command to run the bot
-ENTRYPOINT ["python", "src/bot.py", "run"]
+ENTRYPOINT ["python", "-m", "src.bot"]
+CMD ["run"]
