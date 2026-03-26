@@ -818,6 +818,37 @@ wheels = [
 ]
 
 [[package]]
+name = "sarema-squeeze"
+version = "0.1.0"
+source = { virtual = "." }
+dependencies = [
+    { name = "ccxt" },
+    { name = "duckdb" },
+    { name = "polars" },
+    { name = "pydantic" },
+    { name = "pytest" },
+    { name = "pytest-mock" },
+    { name = "python-dotenv" },
+    { name = "python-telegram-bot", extra = ["job-queue"] },
+    { name = "ta-lib" },
+    { name = "typer" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "ccxt", specifier = ">=4.5.45" },
+    { name = "duckdb", specifier = ">=1.5.1" },
+    { name = "polars", specifier = ">=1.39.3" },
+    { name = "pydantic", specifier = ">=2.12.5" },
+    { name = "pytest", specifier = ">=9.0.2" },
+    { name = "pytest-mock", specifier = ">=3.15.1" },
+    { name = "python-dotenv", specifier = ">=1.2.2" },
+    { name = "python-telegram-bot", extras = ["job-queue"], specifier = ">=22.7" },
+    { name = "ta-lib", specifier = ">=0.6.8" },
+    { name = "typer", extras = ["all"], specifier = ">=0.24.1" },
+]
+
+[[package]]
 name = "setuptools"
 version = "82.0.1"
 source = { registry = "https://pypi.org/simple" }
@@ -854,37 +885,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/82/bc/d2e4c2b752baaee592095feb69514764b004fe53af7cc893ba9c3854cc30/ta_lib-0.6.8-cp314-cp314-win32.whl", hash = "sha256:f5b6174bf4bf9152e368561dff410203c6921e4dd2afbcda3283a95957158112", size = 766352, upload-time = "2025-10-20T20:49:41.088Z" },
     { url = "https://files.pythonhosted.org/packages/40/98/0f2755b5bde81d7b1eaf96b4204f18fabea38b0efc869cb0ea05d57e0afc/ta_lib-0.6.8-cp314-cp314-win_amd64.whl", hash = "sha256:1fb4028437201e19014e4e374272b739867c8a3eb655da46675ef4c2ff14b616", size = 886955, upload-time = "2025-10-20T20:49:38.513Z" },
     { url = "https://files.pythonhosted.org/packages/0b/4c/d341020377f8b183405bdf3c5717fc2ca04a8d33b5c59b2348377ee459d9/ta_lib-0.6.8-cp314-cp314-win_arm64.whl", hash = "sha256:bfad1202fb1f9140e3810cc607058395f59032d9128cc0d716900c78bea5f337", size = 755896, upload-time = "2025-10-20T20:49:39.9Z" },
-]
-
-[[package]]
-name = "tradingview-bot"
-version = "0.1.0"
-source = { virtual = "." }
-dependencies = [
-    { name = "ccxt" },
-    { name = "duckdb" },
-    { name = "polars" },
-    { name = "pydantic" },
-    { name = "pytest" },
-    { name = "pytest-mock" },
-    { name = "python-dotenv" },
-    { name = "python-telegram-bot", extra = ["job-queue"] },
-    { name = "ta-lib" },
-    { name = "typer" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "ccxt", specifier = ">=4.5.45" },
-    { name = "duckdb", specifier = ">=1.5.1" },
-    { name = "polars", specifier = ">=1.39.3" },
-    { name = "pydantic", specifier = ">=2.12.5" },
-    { name = "pytest", specifier = ">=9.0.2" },
-    { name = "pytest-mock", specifier = ">=3.15.1" },
-    { name = "python-dotenv", specifier = ">=1.2.2" },
-    { name = "python-telegram-bot", extras = ["job-queue"], specifier = ">=22.7" },
-    { name = "ta-lib", specifier = ">=0.6.8" },
-    { name = "typer", extras = ["all"], specifier = ">=0.24.1" },
 ]
 
 [[package]]
