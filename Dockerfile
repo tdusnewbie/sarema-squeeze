@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y \
 RUN wget http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.4.0-src.tar.gz && \
     tar -xvzf ta-lib-0.4.0-src.tar.gz && \
     cd ta-lib/ && \
-    ./configure --prefix=/usr && \
+    ./configure --prefix=/usr CFLAGS="-O2 -march=x86-64 -mtune=generic" && \
     make && \
     make install
 
