@@ -1,0 +1,18 @@
+[project]
+name = "sarema-squeeze"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "ccxt>=4.5.45",
+    "duckdb>=1.5.1",
+    "polars>=1.39.3",
+    "pydantic>=2.12.5",
+    "pytest>=9.0.2",
+    "pytest-mock>=3.15.1",
+    "python-dotenv>=1.2.2",
+    "python-telegram-bot[job-queue]>=22.7",
+    "ta-lib>=0.6.8",
+    "typer[all]>=0.24.1",
+]

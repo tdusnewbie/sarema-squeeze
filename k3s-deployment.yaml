@@ -1,0 +1,62 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: sarema-squeeze-secrets
+type: Opaque
+stringData:
+  TELEGRAM_BOT_TOKEN: "your_token_here"
+  TELEGRAM_CHAT_ID: "your_chat_id_here"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: sarema-squeeze-db-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sarema-squeeze
+  labels:
+    app: sarema-squeeze
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sarema-squeeze
+  template:
+    metadata:
+      labels:
+        app: sarema-squeeze
+    spec:
+      containers:
+      - name: bot
+        image: your-registry/sarema-squeeze:latest
+        imagePullPolicy: Always
+        env:
+        - name: TELEGRAM_BOT_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: sarema-squeeze-secrets
+              key: TELEGRAM_BOT_TOKEN
+        - name: TELEGRAM_CHAT_ID
+          valueFrom:
+            secretKeyRef:
+              name: sarema-squeeze-secrets
+              key: TELEGRAM_CHAT_ID
+        volumeMounts:
+        - name: db-storage
+          mountPath: /app/data
+        # Ensure the bot uses the persistent path for DuckDB
+        env:
+        - name: DUCKDB_PATH
+          value: "/app/data/trading.db"
+      volumes:
+      - name: db-storage
+        persistentVolumeClaim:
+          claimName: sarema-squeeze-db-pvc
