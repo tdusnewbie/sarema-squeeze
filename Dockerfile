@@ -29,6 +29,11 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
+# Install tini for proper signal handling in containers
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    tini \
+    && rm -rf /var/lib/apt/lists/*
+
 # Copy TA-Lib shared libraries from builder
 COPY --from=builder /usr/lib/libta_lib* /usr/lib/
 # Copy the virtual environment from builder
@@ -42,7 +47,11 @@ ENV PATH="/app/.venv/bin:$PATH"
 ENV PYTHONPATH="/app"
 ENV PYTHONUNBUFFERED=1
 ENV POLARS_SKIP_CPU_CHECK=1
+ENV DUCKDB_PATH="/app/data/trading.db"
+
+# Ensure database parent directory exists
+RUN mkdir -p /app/data
 
 # Default command to run the bot
-ENTRYPOINT ["python", "-m", "src.bot"]
+ENTRYPOINT ["tini", "--", "python", "-m", "src.bot"]
 CMD ["run"]
