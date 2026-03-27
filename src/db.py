@@ -1,3 +1,4 @@
+import os
 import duckdb
 import polars as pl
 from pathlib import Path
