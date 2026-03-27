@@ -2,10 +2,10 @@
 FROM public.ecr.aws/docker/library/python:3.12-slim AS builder
 
 # Install build tools
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
+    ca-certificates \
     wget \
-    make \
     && rm -rf /var/lib/apt/lists/*
 
 # Download and compile TA-Lib C library
@@ -13,8 +13,10 @@ RUN wget http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.4.0-src.tar.gz && \
     tar -xvzf ta-lib-0.4.0-src.tar.gz && \
     cd ta-lib/ && \
     ./configure --prefix=/usr CFLAGS="-O2 -march=x86-64 -mtune=generic" && \
-    make && \
-    make install
+    make -j"$(nproc)" && \
+    make install && \
+    cd / && \
+    rm -rf ta-lib ta-lib-0.4.0-src.tar.gz
 
 # Install uv
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
@@ -43,14 +45,19 @@ COPY --from=builder /app/.venv /app/.venv
 COPY src/ /app/src/
 
 # Set environment variables
-ENV PATH="/app/.venv/bin:$PATH"
-ENV PYTHONPATH="/app"
-ENV PYTHONUNBUFFERED=1
-ENV POLARS_SKIP_CPU_CHECK=1
-ENV DUCKDB_PATH="/app/data/trading.db"
+ENV PATH="/app/.venv/bin:$PATH" \
+    PYTHONPATH="/app" \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    POLARS_SKIP_CPU_CHECK=1 \
+    DUCKDB_PATH="/app/data/trading.db"
 
-# Ensure database parent directory exists
-RUN mkdir -p /app/data
+# Create runtime user and ensure DB directory is writable
+RUN useradd --create-home --uid 10001 appuser && \
+    mkdir -p /app/data && \
+    chown -R appuser:appuser /app
+
+USER appuser
 
 # Default command to run the bot
 ENTRYPOINT ["tini", "--", "python", "-m", "src.bot"]
