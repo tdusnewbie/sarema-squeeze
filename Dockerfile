@@ -24,6 +24,8 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 # Install python dependencies
 WORKDIR /app
 COPY pyproject.toml uv.lock ./
+# Force build numpy from source for X86_V1 compatibility
+RUN uv pip install --no-binary numpy numpy
 RUN uv sync --locked --no-dev --no-install-project --no-cache
 
 # --- Stage 2: Final Runner ---
