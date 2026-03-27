@@ -13,7 +13,7 @@ RUN wget http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.4.0-src.tar.gz && \
     tar -xvzf ta-lib-0.4.0-src.tar.gz && \
     cd ta-lib/ && \
     ./configure --prefix=/usr CFLAGS="-O2 -march=x86-64 -mtune=generic" && \
-    make -j"$(nproc)" && \
+    make && \
     make install && \
     cd / && \
     rm -rf ta-lib ta-lib-0.4.0-src.tar.gz
@@ -38,6 +38,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Copy TA-Lib shared libraries from builder
 COPY --from=builder /usr/lib/libta_lib* /usr/lib/
+RUN ldconfig
+
 # Copy the virtual environment from builder
 COPY --from=builder /app/.venv /app/.venv
 
@@ -49,6 +51,7 @@ ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONPATH="/app" \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONHASHSEED=random \
     POLARS_SKIP_CPU_CHECK=1 \
     DUCKDB_PATH="/app/data/trading.db"
 
