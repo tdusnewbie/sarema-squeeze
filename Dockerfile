@@ -1,5 +1,5 @@
 # --- Stage 1: Build C dependencies ---
-FROM public.ecr.aws/docker/library/python:3.12-slim AS builder
+FROM public.ecr.aws/docker/library/python:3.13-slim AS builder
 
 # Install build tools
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -24,12 +24,10 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 # Install python dependencies
 WORKDIR /app
 COPY pyproject.toml uv.lock ./
-# Force build numpy from source for X86_V1 compatibility
-RUN uv pip install --system --no-binary numpy numpy
-RUN uv sync --system --locked --no-dev --no-install-project --no-cache
+RUN uv sync --locked --no-dev --no-install-project --no-cache
 
 # --- Stage 2: Final Runner ---
-FROM public.ecr.aws/docker/library/python:3.12-slim
+FROM public.ecr.aws/docker/library/python:3.13-slim
 
 WORKDIR /app
 
@@ -42,20 +40,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=builder /usr/lib/libta_lib* /usr/lib/
 RUN ldconfig
 
-# Copy the python packages from builder
-COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
-COPY --from=builder /usr/local/bin/python /usr/local/bin/python
+# Copy the virtual environment from builder
+COPY --from=builder /app/.venv /app/.venv
 
 # Copy source code
 COPY src/ /app/src/
 
 # Set environment variables
-ENV PYTHONPATH="/app" \
+ENV PATH="/app/.venv/bin:$PATH" \
+    PYTHONPATH="/app" \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONHASHSEED=random \
     DUCKDB_PATH="/app/data/trading.db" \
-    NPY_DISABLE_CPU_FEATURES="AVX AVX2 AVX512F AVX512_SKX AVX512_KNL AVX512_CLX AVX512_CNL AVX512_ICL FMA3 SSE3 SSSE3 SSE41 SSE42"
+    NPY_DISABLE_CPU_FEATURES="AVX AVX2 AVX512F FMA3 SSE3 SSSE3 SSE41 SSE42"
 
 # Create runtime user and ensure DB directory is writable
 RUN useradd --create-home --uid 10001 appuser && \
