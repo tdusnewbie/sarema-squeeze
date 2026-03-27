@@ -25,8 +25,8 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 WORKDIR /app
 COPY pyproject.toml uv.lock ./
 # Force build numpy from source for X86_V1 compatibility
-RUN uv pip install --no-binary numpy numpy
-RUN uv sync --locked --no-dev --no-install-project --no-cache
+RUN uv pip install --system --no-binary numpy numpy
+RUN uv sync --system --locked --no-dev --no-install-project --no-cache
 
 # --- Stage 2: Final Runner ---
 FROM public.ecr.aws/docker/library/python:3.12-slim
@@ -42,15 +42,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=builder /usr/lib/libta_lib* /usr/lib/
 RUN ldconfig
 
-# Copy the virtual environment from builder
-COPY --from=builder /app/.venv /app/.venv
+# Copy the python packages from builder
+COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=builder /usr/local/bin/python /usr/local/bin/python
 
 # Copy source code
 COPY src/ /app/src/
 
 # Set environment variables
-ENV PATH="/app/.venv/bin:$PATH" \
-    PYTHONPATH="/app" \
+ENV PYTHONPATH="/app" \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONHASHSEED=random \
