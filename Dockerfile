@@ -1,5 +1,5 @@
 # --- Stage 1: Build C dependencies ---
-FROM public.ecr.aws/docker/library/python:3.13-slim AS builder
+FROM public.ecr.aws/docker/library/python:3.11-slim AS builder
 
 # Install build tools
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -27,7 +27,7 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --locked --no-dev --no-install-project --no-cache
 
 # --- Stage 2: Final Runner ---
-FROM public.ecr.aws/docker/library/python:3.13-slim
+FROM public.ecr.aws/docker/library/python:3.11-slim
 
 WORKDIR /app
 
