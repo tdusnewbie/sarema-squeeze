@@ -1,5 +1,5 @@
 # --- Stage 1: Build C dependencies ---
-FROM python:3.12-slim AS builder
+FROM public.ecr.aws/docker/library/python:3.12-slim AS builder
 
 # Install build tools
 RUN apt-get update && apt-get install -y \
@@ -22,10 +22,10 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 # Install python dependencies
 WORKDIR /app
 COPY pyproject.toml uv.lock ./
-RUN uv sync --no-cache
+RUN uv sync --locked --no-dev --no-install-project --no-cache
 
 # --- Stage 2: Final Runner ---
-FROM python:3.12-slim
+FROM public.ecr.aws/docker/library/python:3.12-slim
 
 WORKDIR /app
 
