@@ -1,5 +1,6 @@
 import pytest
-import polars as pl
+import pandas as pd
+import numpy as np
 from datetime import datetime, timedelta
 from src.strategy import StrategyEngine
 from src.models import SignalType
@@ -21,25 +22,22 @@ def create_mock_df(n=110):
         "psar_prev": [110.0] * n, # PSAR was ABOVE price
         "sqz_val": [1.0] * n
     }
-    return pl.DataFrame(data)
+    return pd.DataFrame(data)
 
 def test_hard_long_signal():
     engine = StrategyEngine()
     df = create_mock_df()
     
     # Setup for a perfect HARD LONG trigger on the last row (n-1):
-    df = df.with_columns([
-        # Current row (n-1): psar flips to BELOW price
-        pl.when(pl.int_range(0, pl.len()) == pl.len() - 1).then(90.0).otherwise(pl.col("psar")).alias("psar"),
-        # price action (go through):
-        pl.when(pl.int_range(0, pl.len()) == pl.len() - 1).then(100.0).otherwise(pl.col("low")).alias("low"),
-        pl.when(pl.int_range(0, pl.len()) == pl.len() - 1).then(115.0).otherwise(pl.col("close")).alias("close"),
-        pl.when(pl.int_range(0, pl.len()) == pl.len() - 1).then(110.0).otherwise(pl.col("open")).alias("open"),
-        # Squeeze: Increasing
-        pl.when(pl.int_range(0, pl.len()) == pl.len() - 1).then(2.0)
-          .when(pl.int_range(0, pl.len()) == pl.len() - 2).then(1.0)
-          .otherwise(pl.col("sqz_val")).alias("sqz_val")
-    ])
+    # Current row (n-1): psar flips to BELOW price
+    df.loc[df.index[-1], "psar"] = 90.0
+    # price action (go through):
+    df.loc[df.index[-1], "low"] = 100.0
+    df.loc[df.index[-1], "close"] = 115.0
+    df.loc[df.index[-1], "open"] = 110.0
+    # Squeeze: Increasing
+    df.loc[df.index[-2], "sqz_val"] = 1.0
+    df.loc[df.index[-1], "sqz_val"] = 2.0
 
     signal = engine.evaluate(df, "BTC/USDT", "15m")
     
@@ -53,24 +51,18 @@ def test_soft_long_signal_sequential():
     
     # 1. First Candle: Create a 3/4 Setup (EMA, Green, Squeeze - NO PSAR FLIP)
     # psar is ABOVE price (110) and stays above.
-    df_setup = df.with_columns([
-        pl.Series("psar", [110.0] * len(df)),
-        pl.Series("psar_prev", [110.0] * len(df)),
-        pl.when(pl.int_range(0, pl.len()) == pl.len() - 1).then(2.0)
-          .when(pl.int_range(0, pl.len()) == pl.len() - 2).then(1.0)
-          .otherwise(pl.col("sqz_val")).alias("sqz_val")
-    ])
+    df.loc[df.index[-2], "sqz_val"] = 1.0
+    df.loc[df.index[-1], "sqz_val"] = 2.0
     
-    signal1 = engine.evaluate(df_setup, "BTC/USDT", "15m")
+    signal1 = engine.evaluate(df, "BTC/USDT", "15m")
     assert signal1 is None
     assert engine.watch_mode.get("BTC/USDT") is not None
 
     # 2. Second Candle: Trigger the 5/5 HARD condition
-    df_trigger = df_setup.with_columns([
-        pl.when(pl.int_range(0, pl.len()) == pl.len() - 1).then(90.0).otherwise(pl.col("psar")).alias("psar"),
-        pl.when(pl.int_range(0, pl.len()) == pl.len() - 1).then(100.0).otherwise(pl.col("low")).alias("low"),
-        pl.when(pl.int_range(0, pl.len()) == pl.len() - 1).then(115.0).otherwise(pl.col("close")).alias("close"),
-    ])
+    df_trigger = df.copy()
+    df_trigger.loc[df_trigger.index[-1], "psar"] = 90.0
+    df_trigger.loc[df_trigger.index[-1], "low"] = 100.0
+    df_trigger.loc[df_trigger.index[-1], "close"] = 115.0
     
     signal2 = engine.evaluate(df_trigger, "BTC/USDT", "15m")
     assert signal2 is not None
@@ -83,17 +75,15 @@ def test_watch_mode_expiry():
     
     # 1. Enter watch mode (3/4 setup)
     # EMA is aligned, Green, Squeeze is growing
-    df_setup = df.with_columns([
-        pl.when(pl.int_range(0, pl.len()) == pl.len() - 1).then(2.0)
-          .when(pl.int_range(0, pl.len()) == pl.len() - 2).then(1.0)
-          .otherwise(pl.col("sqz_val")).alias("sqz_val")
-    ])
-    engine.evaluate(df_setup, "BTC/USDT", "15m")
+    df.loc[df.index[-2], "sqz_val"] = 1.0
+    df.loc[df.index[-1], "sqz_val"] = 2.0
+    
+    engine.evaluate(df, "BTC/USDT", "15m")
     assert engine.watch_mode.get("BTC/USDT") is not None
     
     # 2. Candle passes (No signal)
-    engine.evaluate(df_setup, "BTC/USDT", "15m")
+    engine.evaluate(df, "BTC/USDT", "15m")
     # 3. Candle passes (No signal) - Should expire
-    engine.evaluate(df_setup, "BTC/USDT", "15m")
+    engine.evaluate(df, "BTC/USDT", "15m")
     
     assert engine.watch_mode.get("BTC/USDT") is None

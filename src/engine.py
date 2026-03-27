@@ -1,19 +1,18 @@
-import polars as pl
+import pandas as pd
 import talib
 import numpy as np
 
 class IndicatorEngine:
     @staticmethod
-    def add_indicators(df: pl.DataFrame) -> pl.DataFrame:
+    def add_indicators(df: pd.DataFrame) -> pd.DataFrame:
         """
         Calculates all required indicators for the 5-of-5 strategy.
-        Input: Polars DataFrame with columns [timestamp, open, high, low, close, volume]
+        Input: Pandas DataFrame with columns [timestamp, open, high, low, close, volume]
         """
-        # Convert to pandas briefly for TA-Lib (it only accepts numpy/pandas)
-        # We use numpy arrays for maximum speed
-        close = df['close'].to_numpy()
-        high = df['high'].to_numpy()
-        low = df['low'].to_numpy()
+        # TA-Lib accepts numpy arrays
+        close = df['close'].values
+        high = df['high'].values
+        low = df['low'].values
 
         # 1. EMAs (5, 9, 100)
         ema5 = talib.EMA(close, timeperiod=5)
@@ -24,7 +23,6 @@ class IndicatorEngine:
         psar = talib.SAR(high, low, acceleration=0.02, maximum=0.2)
 
         # 3. Squeeze Momentum (LazyBear Logic)
-        # Length 20, Mults 2.0/1.5
         length = 20
         mult_bb = 2.0
         mult_kc = 1.5
@@ -43,7 +41,6 @@ class IndicatorEngine:
         lowerKC = ma - range_ma * mult_kc
 
         # Squeeze Value (Linear Regression)
-        # Squeeze = linreg(close - avg(avg(max_high, min_low), sma(close)))
         highest_high = talib.MAX(high, timeperiod=length)
         lowest_low = talib.MIN(low, timeperiod=length)
         avg_price = (highest_high + lowest_low) / 2
@@ -51,13 +48,13 @@ class IndicatorEngine:
         
         sqz_val = talib.LINEARREG(close - avg_combined, timeperiod=length)
 
-        # Add all back to Polars DataFrame
-        return df.with_columns([
-            pl.Series("ema5", ema5),
-            pl.Series("ema9", ema9),
-            pl.Series("ema100", ema100),
-            pl.Series("psar", psar),
-            pl.Series("sqz_val", sqz_val),
-            # Shift PSAR by 1 to get "previous PSAR dot" level
-            pl.Series("psar_prev", pl.Series(psar).shift(1))
-        ])
+        # Add columns back to the DataFrame
+        df['ema5'] = ema5
+        df['ema9'] = ema9
+        df['ema100'] = ema100
+        df['psar'] = psar
+        df['sqz_val'] = sqz_val
+        # Shift PSAR by 1 to get "previous PSAR dot" level
+        df['psar_prev'] = df['psar'].shift(1)
+        
+        return df

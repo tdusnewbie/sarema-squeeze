@@ -1,6 +1,6 @@
 import os
 import duckdb
-import polars as pl
+import pandas as pd
 from pathlib import Path
 from typing import Optional
 from datetime import datetime
@@ -47,25 +47,21 @@ class TradingDB:
 
     def load_csv(self, file_path: Path, symbol: str, timeframe: str):
         """Ingest a historical CSV file into the database."""
-        # Use DuckDB's high-speed CSV reader
-        # Assumes CSV header: timestamp, open, high, low, close, volume
         self.conn.execute(f"""
             INSERT OR IGNORE INTO candles
             SELECT '{symbol}', '{timeframe}', * FROM read_csv_auto('{file_path}')
         """)
         return self.conn.execute("SELECT COUNT(*) FROM candles").fetchone()[0]
 
-    def save_candles(self, symbol: str, timeframe: str, df: pl.DataFrame):
-        """Save a Polars DataFrame of candles into the database."""
-        # Register Polars DF to DuckDB
-        self.conn.register("df_view", df.to_pandas())
+    def save_candles(self, symbol: str, timeframe: str, df: pd.DataFrame):
+        """Save a Pandas DataFrame of candles into the database."""
         self.conn.execute(f"""
             INSERT OR IGNORE INTO candles (symbol, timeframe, timestamp, open, high, low, close, volume)
-            SELECT '{symbol}', '{timeframe}', * FROM df_view
+            SELECT '{symbol}', '{timeframe}', * FROM df
         """)
 
-    def get_candles(self, symbol: str, timeframe: str, limit: int = 200) -> pl.DataFrame:
-        """Fetch the most recent candles as a Polars DataFrame."""
+    def get_candles(self, symbol: str, timeframe: str, limit: int = 200) -> pd.DataFrame:
+        """Fetch the most recent candles as a Pandas DataFrame."""
         query = f"""
             SELECT timestamp, open, high, low, close, volume 
             FROM candles 
@@ -73,4 +69,4 @@ class TradingDB:
             ORDER BY timestamp DESC
             LIMIT {limit}
         """
-        return self.conn.execute(query).pl()
+        return self.conn.execute(query).df()

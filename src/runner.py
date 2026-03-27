@@ -1,12 +1,12 @@
 import time
 import ccxt
 import typer
+import pandas as pd
 from datetime import datetime, timedelta
 from .db import TradingDB
 from .engine import IndicatorEngine
 from .strategy import StrategyEngine
 from .notifier import TelegramNotifier
-import polars as pl
 
 class LiveRunner:
     def __init__(self, exchange_id: str, symbol: str, timeframe: str, notifier: TelegramNotifier):
@@ -40,8 +40,8 @@ class LiveRunner:
                 
                 # 2. Fetch latest candles (200 for enough history)
                 ohlcv = self.exchange.fetch_ohlcv(self.symbol, self.timeframe, limit=200)
-                df = pl.DataFrame(ohlcv, schema=["timestamp", "open", "high", "low", "close", "volume"])
-                df = df.with_columns(pl.from_epoch("timestamp", time_unit="ms"))
+                df = pd.DataFrame(ohlcv, columns=["timestamp", "open", "high", "low", "close", "volume"])
+                df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
                 
                 # 3. Calculate Indicators
                 df = IndicatorEngine.add_indicators(df)

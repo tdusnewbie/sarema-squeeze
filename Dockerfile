@@ -52,7 +52,6 @@ ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONHASHSEED=random \
-    POLARS_SKIP_CPU_CHECK=1 \
     DUCKDB_PATH="/app/data/trading.db"
 
 # Create runtime user and ensure DB directory is writable

@@ -1,4 +1,4 @@
-import polars as pl
+import pandas as pd
 from typing import Optional, Dict
 from .models import SignalType, Signal
 from datetime import datetime
@@ -9,30 +9,32 @@ class StrategyEngine:
         # State: {symbol: {"type": SignalType, "expiry": int}}
         self.watch_mode: Dict[str, Dict] = {}
 
-    def _check_indicators(self, curr: dict, prev: dict) -> dict:
+    def _check_indicators(self, curr: pd.Series, prev: pd.Series) -> dict:
         return {
             "long_ema": (curr['ema5'] > curr['ema9'] > curr['ema100']),
             "short_ema": (curr['ema5'] < curr['ema9'] < curr['ema100']),
             
-            "long_psar_flip": (curr['psar'] < curr['close']) and (curr['psar_prev'] > prev['close']),
-            "short_psar_flip": (curr['psar'] > curr['close']) and (curr['psar_prev'] < prev['close']),
+            "long_psar_flip": (curr['psar'] < curr['close']) and (prev['psar'] > prev['close']),
+            "short_psar_flip": (curr['psar'] > curr['close']) and (prev['psar'] < prev['close']),
             
             "long_green": (curr['close'] > curr['open']),
             "short_red": (curr['close'] < curr['open']),
             
-            "long_go_through": (curr['low'] < curr['psar_prev']) and (curr['close'] > curr['psar_prev']),
-            "short_go_through": (curr['high'] > curr['psar_prev']) and (curr['close'] < curr['psar_prev']),
+            "long_go_through": (curr['low'] < prev['psar']) and (curr['close'] > prev['psar']),
+            "short_go_through": (curr['high'] > prev['psar']) and (curr['close'] < prev['psar']),
             
             "long_sqz": (curr['sqz_val'] > 0) and (curr['sqz_val'] > prev['sqz_val']),
             "short_sqz": (curr['sqz_val'] < 0) and (curr['sqz_val'] < prev['sqz_val'])
         }
 
-    def evaluate(self, df: pl.DataFrame, symbol: str, timeframe: str) -> Optional[Signal]:
+    def evaluate(self, df: pd.DataFrame, symbol: str, timeframe: str) -> Optional[Signal]:
         if len(df) < 102:
             return None
 
-        rows = df.tail(2).to_dicts()
-        prev, curr = rows[0], rows[1]
+        # Last two rows
+        prev = df.iloc[-2]
+        curr = df.iloc[-1]
+        
         cond = self._check_indicators(curr, prev)
 
         # 1. HARD SIGNAL (5/5)
