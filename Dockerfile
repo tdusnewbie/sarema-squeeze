@@ -52,7 +52,8 @@ ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONHASHSEED=random \
-    DUCKDB_PATH="/app/data/trading.db"
+    DUCKDB_PATH="/app/data/trading.db" \
+    NPY_DISABLE_CPU_FEATURES="AVX AVX2 AVX512F AVX512_SKX AVX512_KNL AVX512_CLX AVX512_CNL AVX512_ICL FMA3 SSE3 SSSE3 SSE41 SSE42"
 
 # Create runtime user and ensure DB directory is writable
 RUN useradd --create-home --uid 10001 appuser && \
