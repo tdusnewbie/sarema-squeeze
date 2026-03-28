@@ -1,6 +1,7 @@
 import os
 import duckdb
 import pandas as pd
+import typer
 from pathlib import Path
 from typing import Optional
 from datetime import datetime
