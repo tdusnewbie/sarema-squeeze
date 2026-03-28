@@ -138,33 +138,20 @@ def scan(
         
         # DEBUG: Check for setup count
         if i < 1: continue
-        prev = df.iloc[i-1]
         curr = df.iloc[i]
         
-        # Quick manual check for logging
-        long_setup = sum([
-            (curr['ema5'] > curr['ema9'] > curr['ema100']),
-            (curr['psar'] < curr['close']) and (prev['psar'] > prev['close']),
-            (curr['close'] > curr['open']),
-            (curr['sqz_val'] > 0) and (curr['sqz_val'] > prev['sqz_val'])
-        ])
-        
         ts_adjusted = curr['timestamp'] + timedelta(hours=tz_offset)
-        if long_setup >= 3:
-            ema_ok = "✅" if (curr['ema5'] > curr['ema9'] > curr['ema100']) else "❌"
-            psar_ok = "✅" if (curr['psar'] < curr['close']) and (prev['psar'] > prev['close']) else "❌"
-            color_ok = "✅" if (curr['close'] > curr['open']) else "❌"
-            sqz_ok = "✅" if (curr['sqz_val'] > 0) and (curr['sqz_val'] > prev['sqz_val']) else "❌"
-            thru_ok = "✅" if (curr['low'] < prev['psar']) and (curr['close'] > prev['psar']) else "❌"
-            
-            log_and_collect(f"⏳ [{ts_adjusted}] SETUP: EMA:{ema_ok} PSAR:{psar_ok} Color:{color_ok} SQZ:{sqz_ok} THRU:{thru_ok}")
-
-        signal = strategy.evaluate(window_df, symbol, timeframe)
         
-        # Log Watch Mode Status
-        if symbol in strategy.watch_mode and strategy.watch_mode[symbol] is not None:
-            watch = strategy.watch_mode[symbol]
-            log_and_collect(f"👀 [{ts_adjusted}] WATCHING {watch['type']} ({watch['expiry']} left)")
+        signal, status = strategy.evaluate(window_df, symbol, timeframe)
+        
+        # Log Condition Status if we have any interesting score (>=3) or if we are watching
+        score = sum(status.values()) if status else 0
+        is_watching = symbol in strategy.watch_mode and strategy.watch_mode[symbol] is not None
+        
+        if score >= 3 or is_watching:
+            status_str = " ".join([f"{k}:{'✅' if v else '❌'}" for k, v in status.items()])
+            prefix = "⏳ SETUP" if not is_watching else f"👀 WATCH ({strategy.watch_mode[symbol]['type']}, {strategy.watch_mode[symbol]['expiry']} left)"
+            log_and_collect(f"{prefix} [{ts_adjusted}] {status_str}")
 
         if signal:
             signals_found.append(signal)

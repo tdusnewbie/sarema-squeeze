@@ -27,55 +27,87 @@ class StrategyEngine:
             "short_sqz": (curr['sqz_val'] < 0) and (curr['sqz_val'] < prev['sqz_val'])
         }
 
-    def evaluate(self, df: pd.DataFrame, symbol: str, timeframe: str) -> Optional[Signal]:
+    def evaluate(self, df: pd.DataFrame, symbol: str, timeframe: str) -> tuple[Optional[Signal], dict]:
         if len(df) < 102:
-            return None
+            return None, {}
 
         # Last two rows
         prev = df.iloc[-2]
         curr = df.iloc[-1]
         
         cond = self._check_indicators(curr, prev)
+        
+        # Define 4 groups
+        # 1. PSAR Flip (Must have for Watch Mode)
+        psar_flip_long = (curr['psar'] < curr['close']) and (prev['psar'] > prev['close'])
+        psar_flip_short = (curr['psar'] > curr['close']) and (prev['psar'] < prev['close'])
+        
+        # 2. EMA Alignment
+        ema_long = cond["long_ema"]
+        ema_short = cond["short_ema"]
+        
+        # 3. Squeeze
+        sqz_long = cond["long_sqz"]
+        sqz_short = cond["short_sqz"]
+        
+        # 4. Price Action (Color + Thru)
+        # Note: 'Thru' check for HARD signal uses current prev['psar']
+        # but for WATCH mode we might use a locked level.
+        thru_long = (curr['low'] < prev['psar']) and (curr['close'] > prev['psar']) and (curr['close'] > curr['open'])
+        thru_short = (curr['high'] > prev['psar']) and (curr['close'] < prev['psar']) and (curr['close'] < curr['open'])
 
-        # 1. Check for 5/5 Match Completion
-        is_5_of_5_long = cond["long_ema"] and cond["long_psar_flip"] and cond["long_green"] and cond["long_go_through"] and cond["long_sqz"]
-        is_5_of_5_short = cond["short_ema"] and cond["short_psar_flip"] and cond["short_red"] and cond["short_go_through"] and cond["short_sqz"]
+        status_long = {"PSAR": psar_flip_long, "EMA": ema_long, "Price": thru_long, "Sqz": sqz_long}
+        status_short = {"PSAR": psar_flip_short, "EMA": ema_short, "Price": thru_short, "Sqz": sqz_short}
 
-        if is_5_of_5_long:
-            # Check if we were already watching for this
-            was_watching = symbol in self.watch_mode and self.watch_mode[symbol] is not None and self.watch_mode[symbol]["type"] == SignalType.LONG
-            self.watch_mode[symbol] = None # Reset
-            
-            msg = "🔥 HARD LONG: 5/5 Match" if not was_watching else "🌊 SEQUENTIAL LONG: 5/5 Completed"
+        # 1. Check for 4/4 HARD Signal
+        if all(status_long.values()):
+            self.watch_mode[symbol] = None
             return Signal(timestamp=curr['timestamp'], symbol=symbol, timeframe=timeframe, type=SignalType.LONG, 
-                          price=curr['close'], message=msg, is_hard=not was_watching)
+                          price=curr['close'], message="🔥 HARD LONG: 4/4 Match", is_hard=True), status_long
         
-        if is_5_of_5_short:
-            was_watching = symbol in self.watch_mode and self.watch_mode[symbol] is not None and self.watch_mode[symbol]["type"] == SignalType.SHORT
-            self.watch_mode[symbol] = None # Reset
-            
-            msg = "🔥 HARD SHORT: 5/5 Match" if not was_watching else "🌊 SEQUENTIAL SHORT: 5/5 Completed"
+        if all(status_short.values()):
+            self.watch_mode[symbol] = None
             return Signal(timestamp=curr['timestamp'], symbol=symbol, timeframe=timeframe, type=SignalType.SHORT, 
-                          price=curr['close'], message=msg, is_hard=not was_watching)
+                          price=curr['close'], message="🔥 HARD SHORT: 4/4 Match", is_hard=True), status_short
 
-        # 2. STATE MANAGEMENT (Watch Window Setup)
-        # Setup conditions: 3 out of 4 main indicators (EMA, PSAR Flip, Candle Color, Squeeze)
-        long_setup = sum([cond["long_ema"], cond["long_psar_flip"], cond["long_green"], cond["long_sqz"]]) >= 3
-        short_setup = sum([cond["short_ema"], cond["short_psar_flip"], cond["short_red"], cond["short_sqz"]]) >= 3
-
-        # Case A: Handle Setup (Enter or Refresh)
-        if long_setup:
-            # If not watching, or watching SHORT, or just refreshing LONG
-            self.watch_mode[symbol] = {"type": SignalType.LONG, "expiry": self.watch_window}
-        elif short_setup:
-            # If not watching, or watching LONG, or just refreshing SHORT
-            self.watch_mode[symbol] = {"type": SignalType.SHORT, "expiry": self.watch_window}
-        
-        # Case B: No Setup this candle -> Decrement if already in Watch Mode
-        elif symbol in self.watch_mode and self.watch_mode[symbol] is not None:
-            setup = self.watch_mode[symbol]
-            setup["expiry"] -= 1
-            if setup["expiry"] <= 0:
+        # 2. Check for SEQUENTIAL Completion (Watch Mode)
+        if symbol in self.watch_mode and self.watch_mode[symbol] is not None:
+            wm = self.watch_mode[symbol]
+            st = status_long if wm["type"] == SignalType.LONG else status_short
+            
+            # Locked Price Action check: Does current candle pierce the LOCKED PSAR level?
+            locked_psar = wm["locked_psar"]
+            if wm["type"] == SignalType.LONG:
+                price_ok = (curr['low'] < locked_psar) and (curr['close'] > locked_psar) and (curr['close'] > curr['open'])
+            else:
+                price_ok = (curr['high'] > locked_psar) and (curr['close'] < locked_psar) and (curr['close'] < curr['open'])
+            
+            # Update status with the locked check for this candle
+            st["Price"] = price_ok
+            # PSAR is considered "Completed" if it flipped at the start
+            st["PSAR"] = True 
+            
+            if all(st.values()):
                 self.watch_mode[symbol] = None
+                msg = f"🌊 SEQUENTIAL {wm['type']}: 4/4 Completed"
+                return Signal(timestamp=curr['timestamp'], symbol=symbol, timeframe=timeframe, type=wm["type"], 
+                              price=curr['close'], message=msg, is_hard=False), st
+            
+            # Still watching: Decrement
+            wm["expiry"] -= 1
+            if wm["expiry"] <= 0:
+                self.watch_mode[symbol] = None
+            else:
+                # Return current status for logging
+                return None, st
 
-        return None
+        # 3. Check for Watch Mode ENTRY (Must have PSAR Flip + 2 others)
+        if psar_flip_long and sum([ema_long, thru_long, sqz_long]) >= 2:
+            self.watch_mode[symbol] = {"type": SignalType.LONG, "expiry": self.watch_window, "locked_psar": prev['psar']}
+            return None, status_long
+        
+        if psar_flip_short and sum([ema_short, thru_short, sqz_short]) >= 2:
+            self.watch_mode[symbol] = {"type": SignalType.SHORT, "expiry": self.watch_window, "locked_psar": prev['psar']}
+            return None, status_short
+
+        return None, {}

@@ -6,31 +6,22 @@
 Create a 100% self-hosted automated system that monitors technical indicators and triggers actions (like sending a Telegram notification) when all specified conditions align perfectly.
 
 ### CORE RULE: THE "HARD" CONDITION
-The bot uses a strict "5-out-of-5" logic. For an alert to fire, **all 5 conditions must be True on the same candle.**
+The bot uses a strict "4-out-of-4" logical group check. For an alert to fire, **all groups must be True on the same candle.**
 
-*   **LONG:**
-    *   **EMA Alignment:** EMA 5 > EMA 9 > EMA 100.
-    *   **PSAR Flip:** Dot jumps from above to below the candle (Bullish Flip).
-    *   **Candle Color:** **MUST be Green** (`Close > Open`).
-    *   **Price Action:** The candle must "go through" the previous PSAR level (`Low < PSAR[1]` AND `Close > PSAR[1]`).
-    *   **Squeeze Momentum:** Histogram bar must be **Light Green** (Momentum > 0 and increasing).
-
-*   **SHORT:**
-    *   **EMA Alignment:** EMA 5 < EMA 9 < EMA 100.
-    *   **PSAR Flip:** Dot jumps from below to above the candle (Bearish Flip).
-    *   **Candle Color:** **MUST be Red** (`Close < Open`).
-    *   **Price Action:** The candle must "go through" the previous PSAR level (`High > PSAR[1]` AND `Close < PSAR[1]`).
-    *   **Squeeze Momentum:** Histogram bar must be **Light Red** (Momentum < 0 and getting more negative).
+*   **Logical Groups:**
+    1.  **PSAR Flip:** Dot jumps from above to below (Long) or below to above (Short) relative to the candle.
+    2.  **EMA Alignment:** EMA 5 > 9 > 100 (Long) or EMA 5 < 9 < 100 (Short).
+    3.  **Price Action:** Candle MUST be Green (Long) or Red (Short) AND must pierce the PSAR level.
+    4.  **Squeeze Momentum:** Histogram bar must be Light Green (Long) or Light Red (Short).
 
 ### SOFT CONDITION: SEQUENTIAL CONFIRMATION
 To catch more opportunities, the bot uses a "Watch Window" logic:
-1. **The Setup:** If **3 out of the 4** main indicators (EMA, PSAR, Candle Color, Squeeze) align, the bot enters "Watch Mode."
-2. **The Window:** The bot will monitor the next **5 candles** specifically looking for the full **Hard Condition (5/5)** to complete.
-3. **The Lifecycle (Watch Mode Rules):**
-    *   **Trigger:** If 5/5 matches during this window, the alert fires immediately and Watch Mode ends.
-    *   **Refresh:** If the Setup (3/4) remains True on the next candle, the 5-candle window is **reset back to 5** to ensure we stay synced with a persisting trend.
-    *   **Switch:** If a contrary Setup (e.g., Short Setup while watching Long) appears, the previous Watch Mode is cancelled immediately in favor of the new direction.
-    *   **Expiry:** If the window closes (5 candles pass) without a 5/5 match or a Setup refresh, the bot resets.
+1. **The Setup:** Entry into Watch Mode requires:
+    *   **PSAR Flip** group MUST be True.
+    *   **At least 2 of the other 3 groups** (EMA, Price Action, Squeeze) must be True.
+2. **The Lock:** When entering Watch Mode, the bot **locks the PSAR level** (the "coordinator") from the setup candle.
+3. **The Window:** The bot monitors the next **5 candles**.
+4. **The Completion:** A Sequential Signal fires if the **missing groups** from the setup become True within the window. **Crucially**, the Price Action group is checked against the **Locked PSAR level**.
 
 ---
 
