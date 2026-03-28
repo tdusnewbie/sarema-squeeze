@@ -36,6 +36,34 @@ class TradingDB:
                 volume DOUBLE,
                 PRIMARY KEY (symbol, timeframe, timestamp)
             );
+        """)
+        # Check if watchlist exists and what columns it has
+        tables = conn.execute("SHOW TABLES").fetchall()
+        if ('watchlist',) in tables:
+            cols = conn.execute("PRAGMA table_info('watchlist')").fetchall()
+            col_names = [c[1] for c in cols]
+            if 'chat_id' not in col_names:
+                typer.echo("🔄 Migrating watchlist table to include chat_id...")
+                conn.execute("ALTER TABLE watchlist RENAME TO watchlist_old")
+                conn.execute("""
+                    CREATE TABLE watchlist (
+                        chat_id BIGINT,
+                        exchange_id VARCHAR,
+                        symbol VARCHAR,
+                        timeframe VARCHAR,
+                        PRIMARY KEY (chat_id, exchange_id, symbol, timeframe)
+                    )
+                """)
+                # Use current env chat_id as default for old records if available
+                default_chat_id = os.getenv("TELEGRAM_CHAT_ID", "0")
+                try:
+                    conn.execute(f"INSERT INTO watchlist SELECT {default_chat_id}, * FROM watchlist_old")
+                except:
+                    pass
+                conn.execute("DROP TABLE watchlist_old")
+        
+        # Ensure it exists with correct schema if not already there
+        conn.execute("""
             CREATE TABLE IF NOT EXISTS watchlist (
                 chat_id BIGINT,
                 exchange_id VARCHAR,
