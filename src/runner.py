@@ -3,9 +3,9 @@ import ccxt.async_support as ccxt
 import typer
 import pandas as pd
 from datetime import datetime
-from .db import TradingDB
-from .engine import IndicatorEngine
-from .strategy import StrategyEngine
+from .data.db import TradingDB
+from .services.indicator_service import IndicatorEngine
+from .services.strategy_service import StrategyEngine
 from .notifier import TelegramNotifier
 
 class AsyncLiveRunner:

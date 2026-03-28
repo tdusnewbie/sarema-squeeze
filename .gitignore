@@ -205,3 +205,9 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Data files and logs
+*.csv
+*.txt
+*.db
+*.db.wal

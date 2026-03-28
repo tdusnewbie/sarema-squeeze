@@ -38,6 +38,7 @@ def worker(poll: int = typer.Option(30, "--poll", "-p", help="Poll interval in s
     """
     import asyncio
     from .runner import ScannersManager
+    from .data.db import TradingDB
     import os
 
     token = os.getenv("TELEGRAM_BOT_TOKEN")
@@ -84,15 +85,19 @@ def fetch_history(
 def scan(
     file: Path = typer.Option(..., "--file", "-f", exists=True, readable=True, help="Historical CSV file to scan"),
     symbol: str = typer.Option("BTC/USDT", "--symbol", "-s", help="Symbol for the data in CSV"),
-    timeframe: str = typer.Option("1h", "--timeframe", "-t", help="Timeframe of the CSV data")
+    timeframe: str = typer.Option("1h", "--timeframe", "-t", help="Timeframe of the CSV data"),
+    tz_offset: int = typer.Option(0, "--tz-offset", help="Timezone offset in hours (e.g. 7 for UTC+7)"),
+    output_log: Optional[Path] = typer.Option(None, "--output-log", "-ol", help="File to save scan results")
 ):
     """
     Scan a historical CSV file for signals (Backtester).
     """
-    from .db import TradingDB
-    from .engine import IndicatorEngine
-    from .strategy import StrategyEngine
+    from .data.db import TradingDB
+    from .services.indicator_service import IndicatorEngine
+    from .services.strategy_service import StrategyEngine
     import pandas as pd
+    import numpy as np
+    from datetime import timedelta
 
     typer.echo(f"🔍 Scanning historical data from: {file}")
     
@@ -105,7 +110,12 @@ def scan(
     
     # Ensure timestamp is datetime
     if not pd.api.types.is_datetime64_any_dtype(df["timestamp"]):
-        df["timestamp"] = pd.to_datetime(df["timestamp"])
+        # Check if it looks like unix seconds (e.g. > 1e9)
+        sample_ts = df["timestamp"].iloc[0]
+        if isinstance(sample_ts, (int, float, np.integer)) and sample_ts > 1e9:
+            df["timestamp"] = pd.to_datetime(df["timestamp"], unit='s')
+        else:
+            df["timestamp"] = pd.to_datetime(df["timestamp"])
     
     typer.echo(f"📈 Loaded {len(df)} candles. Calculating indicators...")
     
@@ -116,6 +126,12 @@ def scan(
     strategy = StrategyEngine()
     signals_found = []
     
+    results = []
+
+    def log_and_collect(msg: str):
+        typer.echo(msg)
+        results.append(msg)
+
     # Iterate through candles (starting from 101 to have enough history)
     for i in range(101, len(df)):
         window_df = df.iloc[:i + 1]
@@ -133,6 +149,7 @@ def scan(
             (curr['sqz_val'] > 0) and (curr['sqz_val'] > prev['sqz_val'])
         ])
         
+        ts_adjusted = curr['timestamp'] + timedelta(hours=tz_offset)
         if long_setup >= 3:
             ema_ok = "✅" if (curr['ema5'] > curr['ema9'] > curr['ema100']) else "❌"
             psar_ok = "✅" if (curr['psar'] < curr['close']) and (prev['psar'] > prev['close']) else "❌"
@@ -140,15 +157,28 @@ def scan(
             sqz_ok = "✅" if (curr['sqz_val'] > 0) and (curr['sqz_val'] > prev['sqz_val']) else "❌"
             thru_ok = "✅" if (curr['low'] < prev['psar']) and (curr['close'] > prev['psar']) else "❌"
             
-            typer.echo(f"⏳ [{curr['timestamp']}] SETUP: EMA:{ema_ok} PSAR:{psar_ok} Color:{color_ok} SQZ:{sqz_ok} THRU:{thru_ok}")
+            log_and_collect(f"⏳ [{ts_adjusted}] SETUP: EMA:{ema_ok} PSAR:{psar_ok} Color:{color_ok} SQZ:{sqz_ok} THRU:{thru_ok}")
 
         signal = strategy.evaluate(window_df, symbol, timeframe)
+        
+        # Log Watch Mode Status
+        if symbol in strategy.watch_mode and strategy.watch_mode[symbol] is not None:
+            watch = strategy.watch_mode[symbol]
+            log_and_collect(f"👀 [{ts_adjusted}] WATCHING {watch['type']} ({watch['expiry']} left)")
+
         if signal:
             signals_found.append(signal)
-            local_time = signal.timestamp.astimezone()
-            typer.echo(f"🎯 [{local_time.strftime('%Y-%m-%d %H:%M:%S')}] {signal.type} @ {signal.price} - {signal.message}")
+            ts_adjusted = signal.timestamp + timedelta(hours=tz_offset)
+            log_and_collect(f"🎯 [{ts_adjusted.strftime('%Y-%m-%d %H:%M:%S')}] {signal.type} @ {signal.price} - {signal.message}")
 
-    typer.echo(f"✅ Scan complete. Found {len(signals_found)} signals.")
+    summary = f"✅ Scan complete. Found {len(signals_found)} signals."
+    typer.echo(summary)
+    results.append(summary)
+
+    if output_log:
+        with open(output_log, "w") as f:
+            f.write("\n".join(results))
+        typer.echo(f"📁 Results saved to {output_log}")
 
 if __name__ == "__main__":
     app()

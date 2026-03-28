@@ -1,6 +1,6 @@
 import pandas as pd
 from typing import Optional, Dict
-from .models import SignalType, Signal
+from ..models import SignalType, Signal
 from datetime import datetime
 
 class StrategyEngine:
@@ -37,33 +37,42 @@ class StrategyEngine:
         
         cond = self._check_indicators(curr, prev)
 
-        # 1. HARD SIGNAL (5/5)
-        is_hard_long = cond["long_ema"] and cond["long_psar_flip"] and cond["long_green"] and cond["long_go_through"] and cond["long_sqz"]
-        is_hard_short = cond["short_ema"] and cond["short_psar_flip"] and cond["short_red"] and cond["short_go_through"] and cond["short_sqz"]
+        # 1. Check for 5/5 Match Completion
+        is_5_of_5_long = cond["long_ema"] and cond["long_psar_flip"] and cond["long_green"] and cond["long_go_through"] and cond["long_sqz"]
+        is_5_of_5_short = cond["short_ema"] and cond["short_psar_flip"] and cond["short_red"] and cond["short_go_through"] and cond["short_sqz"]
 
-        if is_hard_long:
-            self.watch_mode[symbol] = None
+        if is_5_of_5_long:
+            # Check if we were already watching for this
+            was_watching = symbol in self.watch_mode and self.watch_mode[symbol] is not None and self.watch_mode[symbol]["type"] == SignalType.LONG
+            self.watch_mode[symbol] = None # Reset
+            
+            msg = "🔥 HARD LONG: 5/5 Match" if not was_watching else "🌊 SEQUENTIAL LONG: 5/5 Completed"
             return Signal(timestamp=curr['timestamp'], symbol=symbol, timeframe=timeframe, type=SignalType.LONG, 
-                          price=curr['close'], message="🔥 HARD LONG: 5/5 Match", is_hard=True)
+                          price=curr['close'], message=msg, is_hard=not was_watching)
         
-        if is_hard_short:
-            self.watch_mode[symbol] = None
+        if is_5_of_5_short:
+            was_watching = symbol in self.watch_mode and self.watch_mode[symbol] is not None and self.watch_mode[symbol]["type"] == SignalType.SHORT
+            self.watch_mode[symbol] = None # Reset
+            
+            msg = "🔥 HARD SHORT: 5/5 Match" if not was_watching else "🌊 SEQUENTIAL SHORT: 5/5 Completed"
             return Signal(timestamp=curr['timestamp'], symbol=symbol, timeframe=timeframe, type=SignalType.SHORT, 
-                          price=curr['close'], message="🔥 HARD SHORT: 5/5 Match", is_hard=True)
+                          price=curr['close'], message=msg, is_hard=not was_watching)
 
-        # 2. STATE MANAGEMENT (Watch Window)
+        # 2. STATE MANAGEMENT (Watch Window Setup)
+        # Setup conditions: 3 out of 4 main indicators (EMA, PSAR Flip, Candle Color, Squeeze)
         long_setup = sum([cond["long_ema"], cond["long_psar_flip"], cond["long_green"], cond["long_sqz"]]) >= 3
         short_setup = sum([cond["short_ema"], cond["short_psar_flip"], cond["short_red"], cond["short_sqz"]]) >= 3
 
-        # Case A: Not in Watch Mode -> Enter if Setup matches
-        if symbol not in self.watch_mode or self.watch_mode[symbol] is None:
-            if long_setup:
-                self.watch_mode[symbol] = {"type": SignalType.LONG, "expiry": self.watch_window}
-            elif short_setup:
-                self.watch_mode[symbol] = {"type": SignalType.SHORT, "expiry": self.watch_window}
+        # Case A: Handle Setup (Enter or Refresh)
+        if long_setup:
+            # If not watching, or watching SHORT, or just refreshing LONG
+            self.watch_mode[symbol] = {"type": SignalType.LONG, "expiry": self.watch_window}
+        elif short_setup:
+            # If not watching, or watching LONG, or just refreshing SHORT
+            self.watch_mode[symbol] = {"type": SignalType.SHORT, "expiry": self.watch_window}
         
-        # Case B: Already in Watch Mode -> Decrement or Expire
-        else:
+        # Case B: No Setup this candle -> Decrement if already in Watch Mode
+        elif symbol in self.watch_mode and self.watch_mode[symbol] is not None:
             setup = self.watch_mode[symbol]
             setup["expiry"] -= 1
             if setup["expiry"] <= 0:

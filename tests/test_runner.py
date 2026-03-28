@@ -1,7 +1,7 @@
 import pytest
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
-from src.db import TradingDB
+from src.data.db import TradingDB
 from src.runner import ScannersManager, AsyncLiveRunner
 from src.notifier import TelegramNotifier
 from src.models import Signal
@@ -9,7 +9,7 @@ from datetime import datetime
 
 @pytest.fixture
 def mock_db():
-    with patch('src.db.TradingDB') as mock:
+    with patch('src.data.db.TradingDB') as mock:
         yield mock.return_value
 
 @pytest.fixture

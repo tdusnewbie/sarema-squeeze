@@ -3,8 +3,9 @@ import asyncio
 import logging
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
-from .db import TradingDB
+from .data.db import TradingDB
 from .runner import ScannersManager
+from .services.exchange_service import ExchangeService
 
 # Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
@@ -16,6 +17,7 @@ class TradingTelegramBot:
         # Bot is always the WRITER if it needs to update the watchlist
         self.db = TradingDB(read_only=False)
         self.manager = None if split_mode else ScannersManager(self.token)
+        self.exchange_service = ExchangeService()
 
     async def start_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("👋 Welcome! Use /add <ex> <sym> <tf> to start a scanner.\nExample: /add binance BTC/USDT:USDT 15m")
@@ -64,12 +66,38 @@ class TradingTelegramBot:
             "**/start** - Welcome message\n"
             "**/add <ex> <sym> <tf>** - Start monitoring a pair\n"
             "Example: `/add binance BTC/USDT:USDT 15m`\n\n"
+            "**/search <name>** - Search for CCXT symbol from TradingView name\n"
+            "Example: `/search BTCUSDTPERP` or `/search BYBIT:BTCUSDT.P`\n\n"
             "**/remove <ex> <sym> <tf>** - Stop monitoring a pair\n"
             "Example: `/remove binance BTC/USDT:USDT 15m`\n\n"
             "**/list** - Show your active watchlist\n"
             "**/help** - Show this help message"
         )
         await update.message.reply_text(help_text, parse_mode="Markdown")
+
+    async def search_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        if not context.args:
+            await update.message.reply_text("❌ Usage: /search <TradingView_Name>\nExample: /search BTCUSDTPERP")
+            return
+
+        query = context.args[0].upper()
+        await update.message.reply_text(f"🔍 Searching for **{query}**...")
+
+        try:
+            exchange_id, matches = await self.exchange_service.search_symbols(query)
+            
+            if matches:
+                msg = f"✅ Found matches on **{exchange_id.upper()}**:\n\n"
+                for m in matches[:10]:
+                    msg += f"`/add {exchange_id} {m} 15m` (Click to copy)\n"
+                if len(matches) > 10:
+                    msg += f"\n...and {len(matches)-10} more."
+                await update.message.reply_text(msg, parse_mode="Markdown")
+            else:
+                await update.message.reply_text(f"❌ No matches found for '{query}' on common exchanges.")
+        except Exception as e:
+            logging.error(f"Search error: {e}")
+            await update.message.reply_text(f"⚠️ Error during search: {str(e)}")
 
     async def run_bot(self):
         # 1. Start all existing items from DB (only if NOT in split mode)
@@ -80,6 +108,7 @@ class TradingTelegramBot:
         app = ApplicationBuilder().token(self.token).build()
         app.add_handler(CommandHandler("start", self.start_command))
         app.add_handler(CommandHandler("add", self.add_command))
+        app.add_handler(CommandHandler("search", self.search_command))
         app.add_handler(CommandHandler("remove", self.remove_command))
         app.add_handler(CommandHandler("list", self.list_command))
         app.add_handler(CommandHandler("help", self.help_command))

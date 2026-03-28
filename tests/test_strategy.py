@@ -2,7 +2,7 @@ import pytest
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
-from src.strategy import StrategyEngine
+from src.services.strategy_service import StrategyEngine
 from src.models import SignalType
 
 def create_mock_df(n=110):
