@@ -99,6 +99,34 @@ class ScannersManager:
                 del self.active_tasks[key]
                 typer.echo(f"🛑 Stopped scanner for {key}")
 
+    async def run_worker(self, poll_interval: int = 30):
+        """Background loop that watches the DB and starts/stops scanners automatically."""
+        typer.echo(f"👷 Scanner Worker started. Polling every {poll_interval}s...")
+        
+        # Note: Worker should use a read-only connection to allow the Bot to write
+        self.db = TradingDB(read_only=True)
+        
+        try:
+            while True:
+                # 1. Get desired state from DB
+                unique_scanners = self.db.get_unique_scanners()
+                desired_keys = set(unique_scanners)
+                current_keys = set(self.active_tasks.keys())
+                
+                # 2. Start new scanners
+                for key in desired_keys - current_keys:
+                    await self.start_scanner(*key)
+                    
+                # 3. Stop removed scanners
+                for key in current_keys - desired_keys:
+                    self.active_tasks[key].cancel()
+                    del self.active_tasks[key]
+                    typer.echo(f"🛑 Stopped scanner for {key}")
+                
+                await asyncio.sleep(poll_interval)
+        except asyncio.CancelledError:
+            await self.stop_all()
+
     async def stop_all(self):
         for task in self.active_tasks.values():
             task.cancel()

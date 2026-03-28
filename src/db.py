@@ -7,12 +7,13 @@ from datetime import datetime
 from .models import Candle
 
 class TradingDB:
-    def __init__(self, db_path: Optional[str] = None):
+    def __init__(self, db_path: Optional[str] = None, read_only: bool = False):
         if db_path is None:
             db_path = os.getenv("DUCKDB_PATH", "trading.db")
         self.db_path = db_path
-        self.conn = duckdb.connect(db_path)
-        self._init_db()
+        self.conn = duckdb.connect(db_path, read_only=read_only)
+        if not read_only:
+            self._init_db()
 
     def _init_db(self):
         """Create the candles and watchlist tables."""

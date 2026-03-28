@@ -10,7 +10,7 @@ load_dotenv()
 app = typer.Typer(help="TradingView Alert Bot - High Performance Pure Python Bot.")
 
 @app.command()
-def run():
+def run(split: bool = typer.Option(False, "--split", "-s", help="Run in split mode (Bot only)")):
     """
     Start the interactive Telegram bot. 
     Manage your scanners directly via /add and /remove commands.
@@ -24,12 +24,33 @@ def run():
         typer.echo("❌ Missing TELEGRAM_BOT_TOKEN in .env file", err=True)
         raise typer.Exit(1)
 
-    bot = TradingTelegramBot()
+    bot = TradingTelegramBot(split_mode=split)
     
     try:
         bot.run()
     except KeyboardInterrupt:
         typer.echo("\n👋 Bot stopped by user.")
+
+@app.command()
+def worker(poll: int = typer.Option(30, "--poll", "-p", help="Poll interval in seconds")):
+    """
+    Start the background scanner worker.
+    """
+    import asyncio
+    from .runner import ScannersManager
+    import os
+
+    token = os.getenv("TELEGRAM_BOT_TOKEN")
+    if not token:
+        typer.echo("❌ Missing TELEGRAM_BOT_TOKEN", err=True)
+        raise typer.Exit(1)
+
+    manager = ScannersManager(token)
+    
+    try:
+        asyncio.run(manager.run_worker(poll_interval=poll))
+    except KeyboardInterrupt:
+        typer.echo("\n👷 Worker stopped by user.")
 
 @app.command()
 def fetch_history(
