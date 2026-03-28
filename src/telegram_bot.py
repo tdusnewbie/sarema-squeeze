@@ -58,6 +58,19 @@ class TradingTelegramBot:
             msg += f"{status} {ex.upper()}: {sym} [{tf}]\n"
         await update.message.reply_text(msg, parse_mode="Markdown")
 
+    async def help_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        help_text = (
+            "🤖 **sarema-squeeze bot Help**\n\n"
+            "**/start** - Welcome message\n"
+            "**/add <ex> <sym> <tf>** - Start monitoring a pair\n"
+            "Example: `/add binance BTC/USDT:USDT 15m`\n\n"
+            "**/remove <ex> <sym> <tf>** - Stop monitoring a pair\n"
+            "Example: `/remove binance BTC/USDT:USDT 15m`\n\n"
+            "**/list** - Show your active watchlist\n"
+            "**/help** - Show this help message"
+        )
+        await update.message.reply_text(help_text, parse_mode="Markdown")
+
     async def run_bot(self):
         # 1. Start all existing items from DB (only if NOT in split mode)
         if not self.split_mode:
@@ -69,6 +82,7 @@ class TradingTelegramBot:
         app.add_handler(CommandHandler("add", self.add_command))
         app.add_handler(CommandHandler("remove", self.remove_command))
         app.add_handler(CommandHandler("list", self.list_command))
+        app.add_handler(CommandHandler("help", self.help_command))
         
         print("🚀 Telegram Bot is live and listening for commands...")
         await app.initialize()
