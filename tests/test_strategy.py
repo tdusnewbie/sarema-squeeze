@@ -66,7 +66,7 @@ def test_soft_long_signal_sequential():
     
     signal2 = engine.evaluate(df_trigger, "BTC/USDT", "15m")
     assert signal2 is not None
-    assert "HARD" in signal2.message
+    assert "SEQUENTIAL" in signal2.message
     assert engine.watch_mode.get("BTC/USDT") is None
 
 def test_watch_mode_expiry():
@@ -81,8 +81,11 @@ def test_watch_mode_expiry():
     engine.evaluate(df, "BTC/USDT", "15m")
     assert engine.watch_mode.get("BTC/USDT") is not None
     
-    # 2. Candle passes (No signal)
+    # 2. Break the setup so it doesn't refresh (e.g. Squeeze goes down)
+    df.loc[df.index[-1], "sqz_val"] = 0.5
     engine.evaluate(df, "BTC/USDT", "15m")
+    assert engine.watch_mode.get("BTC/USDT")["expiry"] == 1
+    
     # 3. Candle passes (No signal) - Should expire
     engine.evaluate(df, "BTC/USDT", "15m")
     
