@@ -21,7 +21,7 @@ async def test_scanners_manager_deduplication(mock_db):
     # Setup mock DB to return unique scanners
     mock_db.get_unique_scanners.return_value = [("binance", "BTC/USDT", "15m")]
     
-    manager = ScannersManager(token="fake_token")
+    manager = ScannersManager(token="fake_token", read_only=True)
     manager.db = mock_db
     
     # Mock AsyncLiveRunner to avoid actual network calls
@@ -42,7 +42,7 @@ async def test_scanners_manager_deduplication(mock_db):
 
 @pytest.mark.asyncio
 async def test_scanners_manager_stop_logic(mock_db):
-    manager = ScannersManager(token="fake_token")
+    manager = ScannersManager(token="fake_token", read_only=True)
     manager.db = mock_db
     
     key = ("binance", "BTC/USDT", "15m")
@@ -64,7 +64,7 @@ async def test_scanners_manager_stop_logic(mock_db):
 @pytest.mark.asyncio
 async def test_async_live_runner_signals_all_subscribers(mock_db, mock_notifier):
     # Setup runner
-    runner = AsyncLiveRunner("binance", "BTC/USDT", "15m", mock_notifier)
+    runner = AsyncLiveRunner("binance", "BTC/USDT", "15m", mock_notifier, mock_db)
     runner.db = mock_db
     
     # Mock exchange and strategy
