@@ -19,7 +19,7 @@ async def test_search_symbols_direct_match():
         ex, matches = await service.search_symbols("BTCUSDT")
         
         assert ex == "binance"
-        assert "BTC/USDT" in matches
+        assert "BTC/USDT (SPOT)" in matches
 
 @pytest.mark.asyncio
 async def test_search_symbols_with_exchange_prefix():
@@ -37,7 +37,7 @@ async def test_search_symbols_with_exchange_prefix():
         ex, matches = await service.search_symbols("BYBIT:BTCUSDT")
         
         assert ex == "bybit"
-        assert "BTC/USDT:USDT" in matches
+        assert "BTC/USDT:USDT (SWAP)" in matches
 
 @pytest.mark.asyncio
 async def test_search_symbols_perp_logic():
@@ -57,9 +57,9 @@ async def test_search_symbols_perp_logic():
         # Searching for PERP should prioritize the swap
         ex, matches = await service.search_symbols("BTCUSDTPERP")
         
-        assert "BTC/USDT:USDT" in matches
+        assert "BTC/USDT:USDT (SWAP)" in matches
         # In our logic, if it's a perp request, we only return perp matches if found
-        assert "BTC/USDT" not in matches
+        assert "BTC/USDT (SPOT)" not in matches
 
 @pytest.mark.asyncio
 async def test_search_symbols_fallback():
@@ -82,4 +82,4 @@ async def test_search_symbols_fallback():
         ex, matches = await service.search_symbols("BTCUSDT")
         
         assert ex == "bybit"
-        assert "BTC/USDT:USDT" in matches
+        assert "BTC/USDT:USDT (SWAP)" in matches

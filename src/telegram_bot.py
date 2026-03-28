@@ -88,8 +88,10 @@ class TradingTelegramBot:
             
             if matches:
                 msg = f"✅ Found matches on **{exchange_id.upper()}**:\n\n"
-                for m in matches[:10]:
-                    msg += f"`/add {exchange_id} {m} 15m` (Click to copy)\n"
+                for m_full in matches[:10]:
+                    # m_full looks like "BTC/USDT:USDT (SWAP)"
+                    m_symbol = m_full.split(" (")[0]
+                    msg += f"`/add {exchange_id} {m_symbol} 15m` - {m_full}\n"
                 if len(matches) > 10:
                     msg += f"\n...and {len(matches)-10} more."
                 await update.message.reply_text(msg, parse_mode="Markdown")
