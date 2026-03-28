@@ -22,6 +22,7 @@ class TradingTelegramBot:
 
     async def add_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
+            logging.info(f"Adding scanner: {context.args} from {update.effective_chat.id}")
             ex, sym, tf = context.args
             chat_id = update.effective_chat.id
             self.db.add_to_watchlist(chat_id, ex, sym, tf)
@@ -29,6 +30,7 @@ class TradingTelegramBot:
                 await self.manager.start_scanner(ex, sym, tf)
             await update.message.reply_text(f"✅ Added {sym} ({tf}) on {ex}. You will be notified of signals!")
         except Exception as e:
+            logging.error(f"Error in /add command: {e}", exc_info=True)
             await update.message.reply_text("❌ Format: /add <exchange> <symbol> <timeframe>\nExample: /add binance BTC/USDT:USDT 15m")
 
     async def remove_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
