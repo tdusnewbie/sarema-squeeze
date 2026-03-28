@@ -4,8 +4,7 @@ import logging
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 from .db import TradingDB
-from .runner import LiveRunner
-from .notifier import TelegramNotifier
+from .runner import ScannersManager
 
 # Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
@@ -13,9 +12,8 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 class TradingTelegramBot:
     def __init__(self):
         self.token = os.getenv("TELEGRAM_BOT_TOKEN")
-        self.chat_id = os.getenv("TELEGRAM_CHAT_ID")
         self.db = TradingDB()
-        self.active_tasks = {} # {(exchange, symbol, tf): asyncio.Task}
+        self.manager = ScannersManager(self.token)
 
     async def start_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("👋 Welcome! Use /add <ex> <sym> <tf> to start a scanner.\nExample: /add binance BTC/USDT:USDT 15m")
@@ -23,54 +21,39 @@ class TradingTelegramBot:
     async def add_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
             ex, sym, tf = context.args
-            self.db.add_to_watchlist(ex, sym, tf)
-            self._start_scanner(ex, sym, tf)
-            await update.message.reply_text(f"✅ Added {sym} ({tf}) on {ex}. Monitoring started!")
+            chat_id = update.effective_chat.id
+            self.db.add_to_watchlist(chat_id, ex, sym, tf)
+            await self.manager.start_scanner(ex, sym, tf)
+            await update.message.reply_text(f"✅ Added {sym} ({tf}) on {ex}. You will be notified of signals!")
         except Exception as e:
             await update.message.reply_text("❌ Format: /add <exchange> <symbol> <timeframe>\nExample: /add binance BTC/USDT:USDT 15m")
 
     async def remove_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
             ex, sym, tf = context.args
-            self.db.remove_from_watchlist(ex, sym, tf)
-            key = (ex, sym, tf)
-            if key in self.active_tasks:
-                self.active_tasks[key].cancel()
-                del self.active_tasks[key]
-            await update.message.reply_text(f"🗑️ Removed {sym} ({tf}). Monitoring stopped.")
+            chat_id = update.effective_chat.id
+            self.db.remove_from_watchlist(chat_id, ex, sym, tf)
+            await self.manager.stop_scanner(ex, sym, tf)
+            await update.message.reply_text(f"🗑️ Removed {sym} ({tf}). Monitoring stopped for you.")
         except:
             await update.message.reply_text("❌ Format: /remove <exchange> <symbol> <timeframe>")
 
     async def list_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        items = self.db.get_watchlist()
+        chat_id = update.effective_chat.id
+        items = self.db.get_watchlist(chat_id)
         if not items:
-            await update.message.reply_text("📜 Watchlist is empty.")
+            await update.message.reply_text("📜 Your watchlist is empty.")
             return
         
-        msg = "📋 **Current Watchlist:**\n"
+        msg = "📋 **Your Watchlist:**\n"
         for ex, sym, tf in items:
-            status = "🟢" if (ex, sym, tf) in self.active_tasks else "🟡"
+            status = "🟢" if (ex, sym, tf) in self.manager.active_tasks else "🟡"
             msg += f"{status} {ex.upper()}: {sym} [{tf}]\n"
         await update.message.reply_text(msg, parse_mode="Markdown")
 
-    def _start_scanner(self, ex, sym, tf):
-        key = (ex, sym, tf)
-        if key in self.active_tasks:
-            return # Already running
-        
-        notifier = TelegramNotifier(self.token, self.chat_id)
-        # We need a new non-blocking runner or wrap existing one
-        runner = LiveRunner(ex, sym, tf, notifier)
-        
-        # Wrap the runner.run() into an async task
-        loop = asyncio.get_event_loop()
-        task = loop.run_in_executor(None, runner.run)
-        self.active_tasks[key] = task
-
-    def run(self):
+    async def run_bot(self):
         # 1. Start all existing items from DB
-        for ex, sym, tf in self.db.get_watchlist():
-            self._start_scanner(ex, sym, tf)
+        await self.manager.start_all()
 
         # 2. Start Telegram Application
         app = ApplicationBuilder().token(self.token).build()
@@ -80,4 +63,22 @@ class TradingTelegramBot:
         app.add_handler(CommandHandler("list", self.list_command))
         
         print("🚀 Telegram Bot is live and listening for commands...")
-        app.run_polling()
+        # We need to run polling manually or use app.run_polling() which is blocking
+        # Since we want to keep scanners running, run_polling is fine as it's async under the hood
+        await app.initialize()
+        await app.start()
+        await app.updater.start_polling()
+        
+        # Keep running
+        try:
+            while True:
+                await asyncio.sleep(3600)
+        except (KeyboardInterrupt, SystemExit):
+            await app.updater.stop()
+            await app.stop()
+            await app.shutdown()
+            await self.manager.stop_all()
+
+    def run(self):
+        """Entry point for the bot."""
+        asyncio.run(self.run_bot())

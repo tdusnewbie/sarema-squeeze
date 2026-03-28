@@ -19,10 +19,9 @@ def run():
     import os
 
     token = os.getenv("TELEGRAM_BOT_TOKEN")
-    chat_id = os.getenv("TELEGRAM_CHAT_ID")
 
-    if not token or not chat_id:
-        typer.echo("❌ Missing TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID in .env file", err=True)
+    if not token:
+        typer.echo("❌ Missing TELEGRAM_BOT_TOKEN in .env file", err=True)
         raise typer.Exit(1)
 
     bot = TradingTelegramBot()

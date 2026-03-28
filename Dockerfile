@@ -1,14 +1,18 @@
 # --- Stage 1: Build C dependencies ---
 FROM public.ecr.aws/docker/library/python:3.11-slim AS builder
 
-# Install build tools
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# Install build tools with cache mount
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     ca-certificates \
     wget \
     && rm -rf /var/lib/apt/lists/*
 
-# Download and compile TA-Lib C library
+# Download and compile TA-Lib C library (Cacheable)
+# We can use a trick to skip this if /usr/lib/libta_lib.so exists, 
+# but in Docker it's usually fresh unless layer cached.
 RUN wget http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.4.0-src.tar.gz && \
     tar -xvzf ta-lib-0.4.0-src.tar.gz && \
     cd ta-lib/ && \
@@ -21,10 +25,11 @@ RUN wget http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.4.0-src.tar.gz && \
 # Install uv
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-# Install python dependencies
+# Install python dependencies with cache mount
 WORKDIR /app
 COPY pyproject.toml uv.lock ./
-RUN uv sync --locked --no-dev --no-install-project --no-cache
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-dev --no-install-project
 
 # --- Stage 2: Final Runner ---
 FROM public.ecr.aws/docker/library/python:3.11-slim

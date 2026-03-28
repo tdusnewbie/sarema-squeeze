@@ -4,15 +4,12 @@ from .models import Signal
 import typer
 
 class TelegramNotifier:
-    def __init__(self, token: str, chat_id: str):
+    def __init__(self, token: str):
         self.token = token
-        self.chat_id = chat_id
         self.base_url = f"https://api.telegram.org/bot{self.token}/sendMessage"
 
-    def send_signal(self, signal: Signal):
-        """Send a formatted trading signal to Telegram."""
-        emoji = "🚀" if signal.type == "LONG" else "td" # Typer doesn't like some emojis in code strings sometimes
-        # Let's use standard strings
+    def send_signal(self, signal: Signal, chat_ids: list[int]):
+        """Send a formatted trading signal to a list of Telegram chat IDs."""
         type_emoji = "🟢 LONG" if signal.type == "LONG" else "🔴 SHORT"
         
         message = (
@@ -24,15 +21,16 @@ class TelegramNotifier:
             f"⚡ **Strict Mode:** {'Yes' if signal.is_hard else 'No'}"
         )
 
-        payload = {
-            "chat_id": self.chat_id,
-            "text": message,
-            "parse_mode": "Markdown"
-        }
+        for chat_id in chat_ids:
+            payload = {
+                "chat_id": chat_id,
+                "text": message,
+                "parse_mode": "Markdown"
+            }
 
-        try:
-            response = requests.post(self.base_url, json=payload)
-            response.raise_for_status()
-            typer.echo(f"📨 Telegram alert sent for {signal.type}")
-        except Exception as e:
-            typer.echo(f"❌ Failed to send Telegram alert: {e}", err=True)
+            try:
+                response = requests.post(self.base_url, json=payload)
+                response.raise_for_status()
+                typer.echo(f"📨 Telegram alert sent to {chat_id}")
+            except Exception as e:
+                typer.echo(f"❌ Failed to send Telegram alert to {chat_id}: {e}", err=True)

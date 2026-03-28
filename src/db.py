@@ -29,21 +29,33 @@ class TradingDB:
                 PRIMARY KEY (symbol, timeframe, timestamp)
             );
             CREATE TABLE IF NOT EXISTS watchlist (
+                chat_id BIGINT,
                 exchange_id VARCHAR,
                 symbol VARCHAR,
                 timeframe VARCHAR,
-                PRIMARY KEY (exchange_id, symbol, timeframe)
+                PRIMARY KEY (chat_id, exchange_id, symbol, timeframe)
             );
         """)
 
-    def add_to_watchlist(self, exchange_id: str, symbol: str, timeframe: str):
-        self.conn.execute("INSERT OR IGNORE INTO watchlist VALUES (?, ?, ?)", [exchange_id, symbol, timeframe])
+    def add_to_watchlist(self, chat_id: int, exchange_id: str, symbol: str, timeframe: str):
+        self.conn.execute("INSERT OR IGNORE INTO watchlist VALUES (?, ?, ?, ?)", [chat_id, exchange_id, symbol, timeframe])
 
-    def remove_from_watchlist(self, exchange_id: str, symbol: str, timeframe: str):
-        self.conn.execute("DELETE FROM watchlist WHERE exchange_id = ? AND symbol = ? AND timeframe = ?", [exchange_id, symbol, timeframe])
+    def remove_from_watchlist(self, chat_id: int, exchange_id: str, symbol: str, timeframe: str):
+        self.conn.execute("DELETE FROM watchlist WHERE chat_id = ? AND exchange_id = ? AND symbol = ? AND timeframe = ?", [chat_id, exchange_id, symbol, timeframe])
 
-    def get_watchlist(self):
+    def get_watchlist(self, chat_id: Optional[int] = None):
+        if chat_id:
+            return self.conn.execute("SELECT exchange_id, symbol, timeframe FROM watchlist WHERE chat_id = ?", [chat_id]).fetchall()
         return self.conn.execute("SELECT * FROM watchlist").fetchall()
+
+    def get_unique_scanners(self):
+        """Returns unique (exchange_id, symbol, timeframe) to run scanners for."""
+        return self.conn.execute("SELECT DISTINCT exchange_id, symbol, timeframe FROM watchlist").fetchall()
+
+    def get_subscribers(self, exchange_id: str, symbol: str, timeframe: str):
+        """Returns all chat_ids subscribed to a specific scanner."""
+        rows = self.conn.execute("SELECT chat_id FROM watchlist WHERE exchange_id = ? AND symbol = ? AND timeframe = ?", [exchange_id, symbol, timeframe]).fetchall()
+        return [r[0] for r in rows]
 
     def load_csv(self, file_path: Path, symbol: str, timeframe: str):
         """Ingest a historical CSV file into the database."""
