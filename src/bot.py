@@ -45,7 +45,7 @@ def worker(poll: int = typer.Option(30, "--poll", "-p", help="Poll interval in s
         typer.echo("❌ Missing TELEGRAM_BOT_TOKEN", err=True)
         raise typer.Exit(1)
 
-    manager = ScannersManager(token)
+    manager = ScannersManager(token, read_only=True)
     
     try:
         asyncio.run(manager.run_worker(poll_interval=poll))

@@ -9,13 +9,13 @@ from .strategy import StrategyEngine
 from .notifier import TelegramNotifier
 
 class AsyncLiveRunner:
-    def __init__(self, exchange_id: str, symbol: str, timeframe: str, notifier: TelegramNotifier):
+    def __init__(self, exchange_id: str, symbol: str, timeframe: str, notifier: TelegramNotifier, db: TradingDB):
         self.exchange_id = exchange_id
         self.symbol = symbol
         self.timeframe = timeframe
         self.notifier = notifier
+        self.db = db
         self.exchange = getattr(ccxt, exchange_id)()
-        self.db = TradingDB()
         self.strategy = StrategyEngine()
         
         # Convert timeframe to seconds (e.g. 15m -> 900s)
@@ -67,10 +67,10 @@ class AsyncLiveRunner:
             await self.exchange.close()
 
 class ScannersManager:
-    def __init__(self, token: str):
+    def __init__(self, token: str, read_only: bool = False):
         self.token = token
         self.notifier = TelegramNotifier(token)
-        self.db = TradingDB()
+        self.db = TradingDB(read_only=read_only)
         self.active_tasks = {} # {(exchange, symbol, tf): asyncio.Task}
 
     async def start_all(self):
@@ -84,7 +84,7 @@ class ScannersManager:
         if key in self.active_tasks:
             return
         
-        runner = AsyncLiveRunner(ex, sym, tf, self.notifier)
+        runner = AsyncLiveRunner(ex, sym, tf, self.notifier, self.db)
         task = asyncio.create_task(runner.run())
         self.active_tasks[key] = task
         typer.echo(f"🚀 Started scanner for {key}")
@@ -102,9 +102,6 @@ class ScannersManager:
     async def run_worker(self, poll_interval: int = 30):
         """Background loop that watches the DB and starts/stops scanners automatically."""
         typer.echo(f"👷 Scanner Worker started. Polling every {poll_interval}s...")
-        
-        # Note: Worker should use a read-only connection to allow the Bot to write
-        self.db = TradingDB(read_only=True)
         
         try:
             while True:
