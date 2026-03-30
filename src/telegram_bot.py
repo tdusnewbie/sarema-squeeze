@@ -66,8 +66,8 @@ class TradingTelegramBot:
             "**/start** - Welcome message\n"
             "**/add <ex> <sym> <tf>** - Start monitoring a pair\n"
             "Example: `/add binance BTC/USDT:USDT 15m`\n\n"
-            "**/search <name>** - Search for CCXT symbol from TradingView name\n"
-            "Example: `/search BTCUSDTPERP` or `/search BYBIT:BTCUSDT.P`\n\n"
+            "**/search <name>** or **/search <ex> <name>** - Search for symbols\n"
+            "Example: `/search BTCUSDTPERP` or `/search bybit BTCUSDT`\n\n"
             "**/remove <ex> <sym> <tf>** - Stop monitoring a pair\n"
             "Example: `/remove binance BTC/USDT:USDT 15m`\n\n"
             "**/list** - Show your active watchlist\n"
@@ -77,26 +77,35 @@ class TradingTelegramBot:
 
     async def search_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not context.args:
-            await update.message.reply_text("❌ Usage: /search <TradingView_Name>\nExample: /search BTCUSDTPERP")
+            await update.message.reply_text("❌ Usage: /search <TradingView_Name> or /search <exchange> <name>\nExample: /search BTCUSDTPERP or /search bybit BTCUSDT")
             return
 
-        query = context.args[0].upper()
-        await update.message.reply_text(f"🔍 Searching for **{query}**...")
+        # Case 1: /search bybit BTCUSDT
+        if len(context.args) >= 2:
+            exchange_id = context.args[0].lower()
+            query = context.args[1].upper()
+        # Case 2: /search BYBIT:BTCUSDT
+        else:
+            query = context.args[0].upper()
+            exchange_id = None # Let service parse EXCHANGE:SYMBOL or fallback
+
+        await update.message.reply_text(f"🔍 Searching for **{query}**" + (f" on **{exchange_id}**" if exchange_id else "") + "...")
 
         try:
-            exchange_id, matches = await self.exchange_service.search_symbols(query)
+            target_exchange, matches = await self.exchange_service.search_symbols(query, exchange_id=exchange_id)
             
             if matches:
-                msg = f"✅ Found matches on **{exchange_id.upper()}**:\n\n"
+                msg = f"✅ Found matches on **{target_exchange.upper()}**:\n\n"
                 for m_full in matches[:10]:
                     # m_full looks like "BTC/USDT:USDT (SWAP)"
                     m_symbol = m_full.split(" (")[0]
-                    msg += f"`/add {exchange_id} {m_symbol} 15m` - {m_full}\n"
+                    msg += f"`/add {target_exchange} {m_symbol} 15m` - {m_full}\n"
                 if len(matches) > 10:
                     msg += f"\n...and {len(matches)-10} more."
                 await update.message.reply_text(msg, parse_mode="Markdown")
             else:
-                await update.message.reply_text(f"❌ No matches found for '{query}' on common exchanges.")
+                target_str = target_exchange.upper() if target_exchange else "common exchanges"
+                await update.message.reply_text(f"❌ No matches found for '{query}' on {target_str}.")
         except Exception as e:
             logging.error(f"Search error: {e}")
             await update.message.reply_text(f"⚠️ Error during search: {str(e)}")
