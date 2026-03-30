@@ -49,8 +49,8 @@ class AsyncLiveRunner:
                     df = IndicatorEngine.add_indicators(df)
                     
                     # 4. Evaluate Strategy
-                    signal = self.strategy.evaluate(df, self.symbol, self.timeframe)
-                    
+                    signal, status = self.strategy.evaluate(df, self.symbol, self.timeframe)
+
                     if signal:
                         typer.echo(f"🎯 SIGNAL FOUND: {signal.type} for {self.symbol}")
                         # Get subscribers from DB
@@ -59,7 +59,6 @@ class AsyncLiveRunner:
                             self.notifier.send_signal(signal, subscribers)
                     else:
                         typer.echo(f"☁️ [{self.symbol} {self.timeframe}] No signal this candle.")
-
                 except Exception as e:
                     typer.echo(f"⚠️ [{self.symbol} {self.timeframe}] Error in loop: {e}. Retrying in 30s...", err=True)
                     await asyncio.sleep(30)

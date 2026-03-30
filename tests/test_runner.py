@@ -75,7 +75,7 @@ async def test_async_live_runner_signals_all_subscribers(mock_db, mock_notifier)
     
     runner.strategy = MagicMock()
     mock_signal = Signal(symbol="BTC/USDT", timeframe="15m", type="LONG", price=50000.0, timestamp=datetime.now(), message="Test", is_hard=True)
-    runner.strategy.evaluate.return_value = mock_signal
+    runner.strategy.evaluate.return_value = (mock_signal, {})
     
     # Mock subscribers
     subscribers = [111, 222, 333]
