@@ -52,10 +52,13 @@ class AsyncLiveRunner:
                     signal, status = self.strategy.evaluate(df, self.symbol, self.timeframe)
 
                     if signal:
-                        typer.echo(f"🎯 SIGNAL FOUND: {signal.type} for {self.symbol}")
+                        typer.echo(f"🎯 SIGNAL FOUND: {signal.type.value} for {self.symbol}")
                         # Get subscribers from DB
                         subscribers = self.db.get_subscribers(self.exchange_id, self.symbol, self.timeframe)
                         if subscribers:
+                            # Ensure timestamp is standard datetime for notifier
+                            if hasattr(signal.timestamp, "to_pydatetime"):
+                                signal.timestamp = signal.timestamp.to_pydatetime()
                             self.notifier.send_signal(signal, subscribers)
                     else:
                         typer.echo(f"☁️ [{self.symbol} {self.timeframe}] No signal this candle.")
