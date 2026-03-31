@@ -54,10 +54,11 @@ class StrategyEngine:
         sqz_long = cond["long_sqz"]
         sqz_short = cond["short_sqz"]
         
-        # 4. Price Action (Color + Thru)
-        # Note: 'Thru' check for HARD signal uses current prev['psar']
-        thru_long = (curr['low'] < prev['psar']) and (curr['close'] > prev['psar']) and (curr['close'] > curr['open'])
-        thru_short = (curr['high'] > prev['psar']) and (curr['close'] < prev['psar']) and (curr['close'] < curr['open'])
+        # 4. Price Action (Color + Position)
+        # Position check: Is the candle on the correct side of the PSAR level?
+        # For Long: Green candle AND Close > PSAR. For Short: Red candle AND Close < PSAR.
+        thru_long = (curr['close'] > prev['psar']) and (curr['close'] > curr['open'])
+        thru_short = (curr['close'] < prev['psar']) and (curr['close'] < curr['open'])
 
         status_long = {"PSAR": psar_long, "EMA": ema_long, "Price": thru_long, "Sqz": sqz_long}
         status_short = {"PSAR": psar_short, "EMA": ema_short, "Price": thru_short, "Sqz": sqz_short}
