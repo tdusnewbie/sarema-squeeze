@@ -69,9 +69,10 @@ class AsyncLiveRunner:
             await self.exchange.close()
 
 class ScannersManager:
-    def __init__(self, token: str, read_only: bool = False):
+    def __init__(self, token: str, read_only: bool = False, tz_offset: int = 0):
         self.token = token
-        self.notifier = TelegramNotifier(token)
+        self.tz_offset = tz_offset
+        self.notifier = TelegramNotifier(token, tz_offset=tz_offset)
         self.db = TradingDB(read_only=read_only)
         self.active_tasks = {} # {(exchange, symbol, tf): asyncio.Task}
 
