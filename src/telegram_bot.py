@@ -14,9 +14,10 @@ class TradingTelegramBot:
     def __init__(self, split_mode: bool = False):
         self.token = os.getenv("TELEGRAM_BOT_TOKEN")
         self.split_mode = split_mode
+        self.tz_offset = int(os.getenv("TIMEZONE_OFFSET") or os.getenv("TZ_OFFSET") or 0)
         # Bot is always the WRITER if it needs to update the watchlist
         self.db = TradingDB(read_only=False)
-        self.manager = None if split_mode else ScannersManager(self.token)
+        self.manager = None if split_mode else ScannersManager(self.token, tz_offset=self.tz_offset)
         self.exchange_service = ExchangeService()
 
     async def start_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):

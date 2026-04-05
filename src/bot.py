@@ -46,7 +46,7 @@ def worker(poll: int = typer.Option(30, "--poll", "-p", help="Poll interval in s
         typer.echo("❌ Missing TELEGRAM_BOT_TOKEN", err=True)
         raise typer.Exit(1)
 
-    tz_offset = int(os.getenv("TIMEZONE_OFFSET", "0"))
+    tz_offset = int(os.getenv("TIMEZONE_OFFSET") or os.getenv("TZ_OFFSET") or 0)
     manager = ScannersManager(token, read_only=True, tz_offset=tz_offset)
     
     try:
@@ -87,7 +87,7 @@ def scan(
     file: Path = typer.Option(..., "--file", "-f", exists=True, readable=True, help="Historical CSV file to scan"),
     symbol: str = typer.Option("BTC/USDT", "--symbol", "-s", help="Symbol for the data in CSV"),
     timeframe: str = typer.Option("1h", "--timeframe", "-t", help="Timeframe of the CSV data"),
-    tz_offset: int = typer.Option(0, "--tz-offset", help="Timezone offset in hours (e.g. 7 for UTC+7)"),
+    tz_offset: int = typer.Option(int(os.getenv("TIMEZONE_OFFSET") or os.getenv("TZ_OFFSET") or 0), "--tz-offset", help="Timezone offset in hours (e.g. 7 for UTC+7)"),
     output_log: Optional[Path] = typer.Option(None, "--output-log", "-ol", help="File to save scan results")
 ):
     """
