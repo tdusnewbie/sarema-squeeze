@@ -118,12 +118,9 @@ def scan(
         else:
             df["timestamp"] = pd.to_datetime(df["timestamp"])
     
-    typer.echo(f"📈 Loaded {len(df)} candles. Calculating indicators...")
+    typer.echo(f"📈 Loaded {len(df)} candles. Scanning for signals...")
     
-    # 2. Add Indicators
-    df = IndicatorEngine.add_indicators(df)
-    
-    # 3. Scan for Signals
+    # 2. Scan for Signals
     strategy = StrategyEngine()
     signals_found = []
     

@@ -45,10 +45,7 @@ class AsyncLiveRunner:
                     df = pd.DataFrame(ohlcv, columns=["timestamp", "open", "high", "low", "close", "volume"])
                     df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
                     
-                    # 3. Calculate Indicators
-                    df = IndicatorEngine.add_indicators(df)
-                    
-                    # 4. Evaluate Strategy
+                    # 3. Evaluate Strategy (Indicators are added inside)
                     signal, status = self.strategy.evaluate(df, self.symbol, self.timeframe)
 
                     if signal:

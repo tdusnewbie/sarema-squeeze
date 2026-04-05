@@ -30,9 +30,13 @@ class StrategyEngine:
             "short_sqz": (curr['sqz_val'] < 0) and (curr['sqz_val'] < prev['sqz_val'])
         }
 
-    def evaluate(self, df: pd.DataFrame, symbol: str, timeframe: str) -> tuple[Optional[Signal], dict]:
+    def evaluate(self, df: pd.DataFrame, symbol: str, timeframe: str, add_indicators: bool = True) -> tuple[Optional[Signal], dict]:
         if len(df) < 102:
             return None, {}
+
+        if add_indicators:
+            from .indicator_service import IndicatorEngine
+            df = IndicatorEngine.add_indicators(df)
 
         # Last two rows
         prev = df.iloc[-2]
