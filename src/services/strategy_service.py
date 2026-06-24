@@ -66,9 +66,9 @@ class StrategyEngine:
         sar_ema_short = cond["short_sar_ema"]
         
         # 5. Price Action (Color + Position)
-        # Position check: Is the candle on the correct side of the PSAR level?
-        thru_long = (curr['close'] > prev['psar']) and (curr['close'] > curr['open'])
-        thru_short = (curr['close'] < prev['psar']) and (curr['close'] < curr['open'])
+        # Position check: Did the candle pierce the PSAR level and have correct color?
+        thru_long = (curr['high'] > prev['psar']) and (curr['close'] > curr['open'])
+        thru_short = (curr['low'] < prev['psar']) and (curr['close'] < curr['open'])
 
         status_long = {"PSAR": psar_long, "EMA": ema_long, "Price": thru_long, "Sqz": sqz_long, "SAR_EMA": sar_ema_long}
         status_short = {"PSAR": psar_short, "EMA": ema_short, "Price": thru_short, "Sqz": sqz_short, "SAR_EMA": sar_ema_short}
@@ -99,9 +99,9 @@ class StrategyEngine:
             # Locked Price Action check: Does current candle pierce the LOCKED PSAR level?
             locked_psar = wm["locked_psar"]
             if wm["type"] == SignalType.LONG:
-                price_ok = (curr['low'] < locked_psar) and (curr['close'] > locked_psar) and (curr['close'] > curr['open'])
+                price_ok = (curr['close'] > locked_psar) and (curr['close'] > curr['open'])
             else:
-                price_ok = (curr['high'] > locked_psar) and (curr['close'] < locked_psar) and (curr['close'] < locked_psar) and (curr['close'] < curr['open'])
+                price_ok = (curr['close'] < locked_psar) and (curr['close'] < curr['open'])
             
             # Update status with the locked check for this candle
             st["Price"] = price_ok
