@@ -40,6 +40,7 @@ def test_hard_long_signal():
     df.loc[df.index[-1], "ema100"] = 100.0 # psar(110) > ema100(100) -> OK
     # 3. Price action (go through): curr['close'] > prev['psar'] (115)
     df.loc[df.index[-1], "low"] = 105.0
+    df.loc[df.index[-1], "high"] = 125.0
     df.loc[df.index[-1], "close"] = 120.0
     df.loc[df.index[-1], "open"] = 118.0 # Green
     # 4. Squeeze: Increasing
@@ -71,6 +72,7 @@ def test_hard_short_signal():
     df.loc[df.index[-1], "ema100"] = 100.0 # psar(90) < ema100(100) -> OK
     # 3. Price action (Red candle below psar): curr['close'] < prev['psar'] (85)
     df.loc[df.index[-1], "high"] = 95.0
+    df.loc[df.index[-1], "low"] = 75.0
     df.loc[df.index[-1], "close"] = 80.0
     df.loc[df.index[-1], "open"] = 82.0 # Red
     # 4. Squeeze: Decreasing (more negative)
