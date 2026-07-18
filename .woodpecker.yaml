@@ -1,0 +1,39 @@
+# sarema-squeeze CI — test, build, push Docker image, update homelab GitOps
+when:
+  - event: push
+    branch: main
+  - event: manual
+
+steps:
+  - name: test
+    image: git.local.tdusnewbie.com/tdusnewbie/plugin-test-python:latest
+    pull: true
+    settings:
+      test_path: tests/
+      coverage: true
+      coverage_threshold: 40
+
+  - name: build-push
+    image: git.local.tdusnewbie.com/tdusnewbie/plugin-build-push:latest
+    pull: true
+    settings:
+      registry: git.local.tdusnewbie.com
+      repo: tdusnewbie/sarema-squeeze
+      tags: latest,sha-${CI_COMMIT_SHA}
+      username:
+        from_secret: forgejo_username
+      password:
+        from_secret: forgejo_token
+
+  - name: gitops-update
+    image: git.local.tdusnewbie.com/tdusnewbie/plugin-gitops-update:latest
+    pull: true
+    settings:
+      homelab_repo_url: https://git.local.tdusnewbie.com/tdusnewbie/homelab.git
+      values_file: k8s/apps/sarema-squeeze/values.yaml
+      app_name: sarema-squeeze
+      image_tag: sha-${CI_COMMIT_SHA}
+      git_username:
+        from_secret: forgejo_username
+      git_token:
+        from_secret: forgejo_token
