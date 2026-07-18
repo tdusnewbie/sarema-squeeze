@@ -6,7 +6,7 @@ when:
 
 steps:
   - name: test
-    image: git.local.tdusnewbie.com/tdusnewbie/plugin-test-python:latest
+    image: git.local.tdusnewbie.com/tdusnewbie/plugin-test-python:v0.0.1
     pull: true
     settings:
       test_path: tests/
@@ -14,7 +14,7 @@ steps:
       coverage_threshold: 40
 
   - name: build-push
-    image: git.local.tdusnewbie.com/tdusnewbie/plugin-build-push:latest
+    image: git.local.tdusnewbie.com/tdusnewbie/plugin-build-push:v0.0.1
     pull: true
     settings:
       registry: git.local.tdusnewbie.com
@@ -26,7 +26,7 @@ steps:
         from_secret: forgejo_token
 
   - name: gitops-update
-    image: git.local.tdusnewbie.com/tdusnewbie/plugin-gitops-update:latest
+    image: git.local.tdusnewbie.com/tdusnewbie/plugin-gitops-update:v0.0.1
     pull: true
     settings:
       homelab_repo_url: https://git.local.tdusnewbie.com/tdusnewbie/homelab.git
