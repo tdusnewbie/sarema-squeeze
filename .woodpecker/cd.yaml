@@ -1,0 +1,24 @@
+when:
+  - event: push
+    branch: main
+  - event: manual
+
+label:
+  backend: kubernetes
+
+depends_on:
+  - ci
+
+steps:
+  - name: gitops-update
+    image: git.local.tdusnewbie.com/tdusnewbie/plugin-gitops-update:v0.0.1
+    pull: true
+    settings:
+      homelab_repo_url: https://git.local.tdusnewbie.com/tdusnewbie/homelab.git
+      values_file: k8s/apps/sarema-squeeze/values.yaml
+      app_name: sarema-squeeze
+      image_tag: sha-${CI_COMMIT_SHA}
+      git_username:
+        from_secret: forgejo_username
+      git_token:
+        from_secret: forgejo_token
