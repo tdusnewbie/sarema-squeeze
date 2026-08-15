@@ -3,7 +3,7 @@ when:
     branch: main
   - event: manual
 
-label:
+labels:
   backend: kubernetes
 
 depends_on:
