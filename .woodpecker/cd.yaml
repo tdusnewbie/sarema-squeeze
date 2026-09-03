@@ -11,7 +11,7 @@ depends_on:
 
 steps:
   - name: gitops-update
-    image: git.local.tdusnewbie.com/tdusnewbie/plugin-gitops-update:v0.0.1
+    image: git.local.tdusnewbie.com/tdusnewbie/plugin-gitops-update:v0.1.0
     pull: true
     settings:
       homelab_repo_url: https://git.local.tdusnewbie.com/tdusnewbie/homelab.git

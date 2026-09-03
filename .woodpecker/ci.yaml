@@ -8,7 +8,7 @@ labels:
 
 steps:
   - name: test
-    image: git.local.tdusnewbie.com/tdusnewbie/plugin-test-python:v0.0.1
+    image: git.local.tdusnewbie.com/tdusnewbie/plugin-test-python:v0.1.0
     pull: true
     settings:
       test_path: tests/
@@ -16,7 +16,7 @@ steps:
       coverage_threshold: 80
 
   - name: build-push
-    image: git.local.tdusnewbie.com/tdusnewbie/plugin-build-push:v0.0.1
+    image: git.local.tdusnewbie.com/tdusnewbie/plugin-build-push:v0.1.0
     pull: true
     settings:
       registry: git.local.tdusnewbie.com
