@@ -49,13 +49,13 @@ spec:
             secretKeyRef:
               name: sarema-squeeze-secrets
               key: TELEGRAM_CHAT_ID
+        - name: TZ
+          value: "Asia/Ho_Chi_Minh"
+        - name: DUCKDB_PATH
+          value: "/app/data/trading.db"
         volumeMounts:
         - name: db-storage
           mountPath: /app/data
-        # Ensure the bot uses the persistent path for DuckDB
-        env:
-        - name: DUCKDB_PATH
-          value: "/app/data/trading.db"
         resources:
           requests:
             memory: "256Mi"

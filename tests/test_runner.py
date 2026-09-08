@@ -99,3 +99,11 @@ async def test_async_live_runner_signals_all_subscribers(mock_db, mock_notifier)
                     
     # Verify notifier was called with the correct list of subscribers
     mock_notifier.send_signal.assert_called_once_with(mock_signal, subscribers)
+
+
+def test_scanners_manager_timezone_initialization():
+    manager = ScannersManager(token="fake_token", tz="Asia/Ho_Chi_Minh")
+    assert manager.tz_offset == 7
+
+    manager.tz_offset = -4
+    assert manager.tz_offset == -4

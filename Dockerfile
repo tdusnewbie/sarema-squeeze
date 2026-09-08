@@ -36,9 +36,10 @@ FROM public.ecr.aws/docker/library/python:3.11-slim
 
 WORKDIR /app
 
-# Install tini for proper signal handling in containers
+# Install tini and tzdata for proper signal and timezone handling in containers
 RUN apt-get update && apt-get install -y --no-install-recommends \
     tini \
+    tzdata \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy TA-Lib shared libraries from builder

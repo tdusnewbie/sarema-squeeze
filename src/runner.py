@@ -66,12 +66,20 @@ class AsyncLiveRunner:
             await self.exchange.close()
 
 class ScannersManager:
-    def __init__(self, token: str, read_only: bool = False, tz_offset: int = 0):
+    def __init__(self, token: str, read_only: bool = False, tz: str | int | None = None, tz_offset: int | None = None):
         self.token = token
-        self.tz_offset = tz_offset
-        self.notifier = TelegramNotifier(token, tz_offset=tz_offset)
+        tz_target = tz if tz is not None else tz_offset
+        self.notifier = TelegramNotifier(token, tz=tz_target)
         self.db = TradingDB(read_only=read_only)
         self.active_tasks = {} # {(exchange, symbol, tf): asyncio.Task}
+
+    @property
+    def tz_offset(self) -> int:
+        return self.notifier.tz_offset
+
+    @tz_offset.setter
+    def tz_offset(self, value: int | None):
+        self.notifier.tz_offset = value
 
     async def start_all(self):
         """Starts all unique scanners from the watchlist."""

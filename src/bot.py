@@ -32,7 +32,10 @@ def run(split: bool = typer.Option(False, "--split", "-s", help="Run in split mo
         typer.echo("\n👋 Bot stopped by user.")
 
 @app.command()
-def worker(poll: int = typer.Option(30, "--poll", "-p", help="Poll interval in seconds")):
+def worker(
+    poll: int = typer.Option(30, "--poll", "-p", help="Poll interval in seconds"),
+    tz: Optional[str] = typer.Option(None, "--tz", help="Timezone name or offset (e.g. Asia/Ho_Chi_Minh, UTC+7, 7)"),
+):
     """
     Start the background scanner worker.
     """
@@ -46,8 +49,7 @@ def worker(poll: int = typer.Option(30, "--poll", "-p", help="Poll interval in s
         typer.echo("❌ Missing TELEGRAM_BOT_TOKEN", err=True)
         raise typer.Exit(1)
 
-    tz_offset = int(os.getenv("TIMEZONE_OFFSET") or os.getenv("TZ_OFFSET") or 0)
-    manager = ScannersManager(token, read_only=True, tz_offset=tz_offset)
+    manager = ScannersManager(token, read_only=True, tz=tz)
     
     try:
         asyncio.run(manager.run_worker(poll_interval=poll))
@@ -87,18 +89,22 @@ def scan(
     file: Path = typer.Option(..., "--file", "-f", exists=True, readable=True, help="Historical CSV file to scan"),
     symbol: str = typer.Option("BTC/USDT", "--symbol", "-s", help="Symbol for the data in CSV"),
     timeframe: str = typer.Option("1h", "--timeframe", "-t", help="Timeframe of the CSV data"),
-    tz_offset: int = typer.Option(int(os.getenv("TIMEZONE_OFFSET") or os.getenv("TZ_OFFSET") or 0), "--tz-offset", help="Timezone offset in hours (e.g. 7 for UTC+7)"),
+    tz: Optional[str] = typer.Option(None, "--tz", help="Timezone name or offset (e.g. Asia/Ho_Chi_Minh, UTC+7)"),
+    tz_offset: Optional[int] = typer.Option(None, "--tz-offset", help="Timezone offset in hours (e.g. 7 for UTC+7)"),
     output_log: Optional[Path] = typer.Option(None, "--output-log", "-ol", help="File to save scan results")
 ):
     """
     Scan a historical CSV file for signals (Backtester).
     """
     from .data.db import TradingDB
+    from .notifier import parse_timezone
     from .services.indicator_service import IndicatorEngine
     from .services.strategy_service import StrategyEngine
     import pandas as pd
     import numpy as np
-    from datetime import timedelta
+    from datetime import timezone
+
+    target_tz = parse_timezone(tz if tz is not None else tz_offset)
 
     typer.echo(f"🔍 Scanning historical data from: {file}")
     
@@ -138,7 +144,12 @@ def scan(
         if i < 1: continue
         curr = df.iloc[i]
         
-        ts_adjusted = curr['timestamp'] + timedelta(hours=tz_offset)
+        ts_val = curr['timestamp']
+        if hasattr(ts_val, "to_pydatetime"):
+            ts_val = ts_val.to_pydatetime()
+        if ts_val.tzinfo is None:
+            ts_val = ts_val.replace(tzinfo=timezone.utc)
+        ts_adjusted = ts_val.astimezone(target_tz)
         
         signal, status = strategy.evaluate(window_df, symbol, timeframe)
         
@@ -153,7 +164,12 @@ def scan(
 
         if signal:
             signals_found.append(signal)
-            ts_adjusted = signal.timestamp + timedelta(hours=tz_offset)
+            sig_ts = signal.timestamp
+            if hasattr(sig_ts, "to_pydatetime"):
+                sig_ts = sig_ts.to_pydatetime()
+            if sig_ts.tzinfo is None:
+                sig_ts = sig_ts.replace(tzinfo=timezone.utc)
+            ts_adjusted = sig_ts.astimezone(target_tz)
             log_and_collect(f"🎯 [{ts_adjusted.strftime('%Y-%m-%d %H:%M:%S')}] {signal.type} @ {signal.price} - {signal.message}")
 
     summary = f"✅ Scan complete. Found {len(signals_found)} signals."

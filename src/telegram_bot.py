@@ -11,14 +11,18 @@ from .services.exchange_service import ExchangeService
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
 class TradingTelegramBot:
-    def __init__(self, split_mode: bool = False):
+    def __init__(self, split_mode: bool = False, tz: str | int | None = None, tz_offset: int | None = None):
         self.token = os.getenv("TELEGRAM_BOT_TOKEN")
         self.split_mode = split_mode
-        self.tz_offset = int(os.getenv("TIMEZONE_OFFSET") or os.getenv("TZ_OFFSET") or 0)
+        self.tz = tz if tz is not None else tz_offset
         # Bot is always the WRITER if it needs to update the watchlist
         self.db = TradingDB(read_only=False)
-        self.manager = None if split_mode else ScannersManager(self.token, tz_offset=self.tz_offset)
+        self.manager = None if split_mode else ScannersManager(self.token, tz=self.tz)
         self.exchange_service = ExchangeService()
+
+    @property
+    def tz_offset(self) -> int:
+        return self.manager.tz_offset if self.manager else 0
 
     async def start_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("👋 Welcome! Use /add <ex> <sym> <tf> to start a scanner.\nExample: /add binance BTC/USDT:USDT 15m")
